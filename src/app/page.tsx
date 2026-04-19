@@ -53,13 +53,22 @@ export default function Home() {
         <p className="text-sm" style={{ color: "#555555" }}>
           No wallet setup required for the payer
         </p>
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-          style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}
-        >
-          View Dashboard
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => router.push("/agent")}
+            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#1a1a0a", border: "1px solid #FF6B2B", color: "#FF6B2B" }}
+          >
+            AI Agent Demo
+          </button>
+        </div>
       </div>
 
       <div
