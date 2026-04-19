@@ -267,10 +267,32 @@ export default function InvoicePage() {
           </p>
         </div>
 
-        {/* Share hint */}
+        {/* Share buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => window.open(
+              `https://wa.me/?text=Hi! I sent you a payment request for ${invoice?.amount} ${invoice?.token}. Pay here: ${paymentLink}`,
+              "_blank"
+            )}
+            className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#0a1f0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+          >
+            Share on WhatsApp
+          </button>
+          <button
+            onClick={() => window.open(
+              `mailto:?subject=Payment Request: ${invoice?.title}&body=Hi! I sent you a payment request for ${invoice?.amount} ${invoice?.token}.%0A%0APay here: ${paymentLink}`,
+              "_blank"
+            )}
+            className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+          >
+            Send via Email
+          </button>
+        </div>
+
         <p className="text-center text-xs" style={{ color: "#333333" }}>
-          Share this link via WhatsApp, email, or any messaging app.
-          The payer needs only a Solana wallet.
+          The payer needs only a Solana wallet. No account required.
         </p>
 
       </div>
