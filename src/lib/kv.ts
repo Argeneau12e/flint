@@ -5,14 +5,21 @@ async function redisCommand(command: unknown[]): Promise<unknown> {
   if (!restUrl || !restToken) {
     throw new Error("Upstash Redis environment variables not set");
   }
-  const res = await fetch(restUrl, {
-    method: "POST",
+
+  const url = `${restUrl}/${command.map((c) => encodeURIComponent(String(c))).join("/")}`;
+
+  const res = await fetch(url, {
+    method: "GET",
     headers: {
       Authorization: `Bearer ${restToken}`,
-      "Content-Type": "application/json",
     },
-    body: JSON.stringify(command),
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Redis error: ${res.status} ${text}`);
+  }
+
   const data = await res.json();
   return data.result;
 }
