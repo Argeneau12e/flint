@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function CreatePage() {
+function CreatePageInner() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -410,5 +410,13 @@ export default function CreatePage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function CreatePage() {
+  return (
+    <Suspense fallback={<div style={{ background: "#0f0f0f", minHeight: "100vh" }} />}>
+      <CreatePageInner />
+    </Suspense>
   );
 }
