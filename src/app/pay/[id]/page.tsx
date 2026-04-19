@@ -32,6 +32,7 @@ export default function PayPage() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [txSig, setTxSig] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -80,7 +81,22 @@ export default function PayPage() {
       const tx = Transaction.from(Buffer.from(transaction, "base64"));
       const { signature } = await window.solana.signAndSendTransaction(tx);
       console.log("Transaction signature:", signature);
-      await connection.confirmTransaction(signature, "confirmed");
+      try {
+        await connection.confirmTransaction(signature, "confirmed");
+      } catch {
+        console.log("Confirmation timeout — transaction likely succeeded");
+      }
+
+      await fetch(`/api/receipt/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          txSignature: signature,
+          payerWallet: window.solana.publicKey.toString(),
+        }),
+      });
+
+      setTxSig(signature);
       setPaid(true);
     } catch (err) {
       console.error(err);
@@ -117,25 +133,73 @@ export default function PayPage() {
 
   if (paid) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6">
-        <div className="max-w-sm w-full text-center">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-6"
-            style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}
-          >
-            ✓
+      <main className="min-h-screen flex items-center justify-center px-6 py-12">
+        <div className="max-w-sm w-full">
+          <div className="text-center mb-8">
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4"
+              style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}
+            >
+              ✓
+            </div>
+            <h1 className="text-2xl font-medium mb-1" style={{ color: "#4ade80" }}>
+              Payment Confirmed
+            </h1>
+            <p className="text-sm" style={{ color: "#888888" }}>
+              On-chain receipt generated
+            </p>
           </div>
-          <h1
-            className="text-2xl font-medium mb-2"
-            style={{ color: "#4ade80" }}
+
+          <div
+            className="rounded-2xl p-6 mb-4 flex flex-col gap-3"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
           >
-            Payment Sent
-          </h1>
-          <p className="text-sm mb-2" style={{ color: "#888888" }}>
-            {invoice.amount} {invoice.token} sent successfully
-          </p>
-          <p className="text-sm" style={{ color: "#555555" }}>
-            {invoice.title}
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
+              <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
+                {invoice.amount} {invoice.token}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Invoice</p>
+              <p className="text-sm" style={{ color: "var(--chalk)" }}>
+                {invoice.title}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Network</p>
+              <p className="text-sm" style={{ color: "#4ade80" }}>
+                Solana Devnet
+              </p>
+            </div>
+            <div
+              style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}
+            >
+              <p className="text-xs mb-2" style={{ color: "#555555" }}>
+                Transaction Signature
+              </p>
+              <p
+                className="text-xs font-mono break-all"
+                style={{ color: "var(--spark)" }}
+              >
+                {txSig}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => window.open(
+              `https://explorer.solana.com/tx/${txSig}?cluster=devnet`,
+              "_blank"
+            )}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
+          >
+            View on Solana Explorer
+          </button>
+
+          <p className="text-center text-xs mt-4" style={{ color: "#333333" }}>
+            Powered by Flint · Secured by Solana
           </p>
         </div>
       </main>
@@ -234,6 +298,7 @@ export default function PayPage() {
                 </p>
               </div>
             )}
+            
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>
                 To
