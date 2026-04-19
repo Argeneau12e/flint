@@ -18,6 +18,7 @@ export default function CreatePage() {
   const [recurring, setRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState("monthly");
   const [recurringCount, setRecurringCount] = useState("12");
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,6 +54,7 @@ export default function CreatePage() {
           recurring,
           recurringInterval: recurring ? recurringInterval : undefined,
           recurringCount: recurring ? Number(recurringCount) : undefined,
+          webhookUrl: webhookUrl || undefined,
         }),
       });
       const data = await res.json();
@@ -366,6 +368,25 @@ export default function CreatePage() {
               Payer will be charged {recurringCount}x {recurringInterval}
             </p>
           )}
+        </div>
+
+        <div>
+          <label style={labelStyle}>
+            Webhook URL
+            <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
+              (optional — for developers)
+            </span>
+          </label>
+          <input
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+            placeholder="https://yourapp.com/webhooks/flint"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
+            style={inputStyle}
+          />
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+            We POST to this URL when your invoice is paid
+          </p>
         </div>
 
         {error && (
