@@ -1,0 +1,293 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+interface Invoice {
+  id: string;
+  title: string;
+  amount: number;
+  token: string;
+  status: string;
+  createdAt: number;
+  expiresAt: number;
+  memo: string;
+  handle?: string;
+  txSignature?: string;
+}
+
+interface Stats {
+  total: number;
+  paid: number;
+  pending: number;
+  expired: number;
+  totalEarned: number;
+  successRate: number;
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [wallet, setWallet] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const connectWallet = async () => {
+    try {
+      if (!window.solana) {
+        setError("Please install Phantom wallet.");
+        return;
+      }
+      await window.solana.connect();
+      const address = window.solana.publicKey.toString();
+      setWallet(address);
+      setConnected(true);
+      fetchDashboard(address);
+    } catch {
+      setError("Failed to connect wallet.");
+    }
+  };
+
+  const fetchDashboard = async (address: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard?wallet=${address}`);
+      const data = await res.json();
+      setInvoices(data.invoices || []);
+      setStats(data.stats);
+    } catch {
+      setError("Failed to load dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const getStatusColor = (invoice: Invoice) => {
+    if (invoice.status === "paid") return "#4ade80";
+    if (Date.now() > invoice.expiresAt) return "#ff6b6b";
+    return "#FFB800";
+  };
+
+  const getStatusLabel = (invoice: Invoice) => {
+    if (invoice.status === "paid") return "Paid";
+    if (Date.now() > invoice.expiresAt) return "Expired";
+    return "Pending";
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.solana?.publicKey) {
+      const address = window.solana.publicKey.toString();
+      setWallet(address);
+      setConnected(true);
+      fetchDashboard(address);
+    }
+  }, []);
+
+  return (
+    <main className="min-h-screen px-6 py-12">
+      <div className="max-w-3xl mx-auto">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm mb-2 block"
+              style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer" }}
+            >
+              Back to Flint
+            </button>
+            <h1
+              className="text-3xl font-medium tracking-wide"
+              style={{ color: "var(--chalk)" }}
+            >
+              Dashboard
+            </h1>
+            {wallet && (
+              <p className="text-sm font-mono mt-1" style={{ color: "#555555" }}>
+                {wallet.slice(0, 6)}...{wallet.slice(-6)}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => router.push("/create")}
+            className="px-5 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "var(--spark)" }}
+          >
+            New Invoice
+          </button>
+        </div>
+
+        {/* Not connected */}
+        {!connected && (
+          <div
+            className="rounded-2xl p-12 text-center"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+              style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}
+            >
+              <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+                <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
+                  stroke="white" strokeWidth="2.5" fill="none" />
+                <polyline points="48,8 60,8 60,20"
+                  stroke="#FF6B2B" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
+                <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
+                <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
+              Connect your wallet
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "#888888" }}>
+              See all your invoices, earnings, and payment history
+            </p>
+            <button
+              onClick={connectWallet}
+              className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90"
+              style={{ background: "var(--spark)" }}
+            >
+              Connect Phantom
+            </button>
+            {error && (
+              <p className="text-sm mt-4" style={{ color: "#ff6b6b" }}>{error}</p>
+            )}
+          </div>
+        )}
+
+        {/* Loading */}
+        {connected && loading && (
+          <div className="text-center py-20">
+            <p style={{ color: "#888888" }}>Loading your invoices...</p>
+          </div>
+        )}
+
+        {/* Stats */}
+        {connected && !loading && stats && (
+          <>
+            <div className="grid grid-cols-2 gap-4 mb-8" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+              {[
+                { label: "Total Earned", value: `${stats.totalEarned}`, suffix: "mixed" },
+                { label: "Success Rate", value: `${stats.successRate}%`, suffix: "" },
+                { label: "Total Invoices", value: `${stats.total}`, suffix: "" },
+                { label: "Paid", value: `${stats.paid}`, suffix: "", color: "#4ade80" },
+                { label: "Pending", value: `${stats.pending}`, suffix: "", color: "#FFB800" },
+                { label: "Expired", value: `${stats.expired}`, suffix: "", color: "#ff6b6b" },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-xl p-4"
+                  style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+                >
+                  <p className="text-xs mb-2" style={{ color: "#555555" }}>
+                    {stat.label}
+                  </p>
+                  <p
+                    className="text-2xl font-medium"
+                    style={{ color: stat.color || "var(--spark)" }}
+                  >
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Invoice list */}
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{ border: "1px solid #1f1f1f" }}
+            >
+              <div
+                className="px-6 py-4 flex items-center justify-between"
+                style={{ background: "#111111", borderBottom: "1px solid #1f1f1f" }}
+              >
+                <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
+                  Invoices
+                </p>
+                <p className="text-xs" style={{ color: "#555555" }}>
+                  {invoices.length} total
+                </p>
+              </div>
+
+              {invoices.length === 0 ? (
+                <div
+                  className="px-6 py-12 text-center"
+                  style={{ background: "#0f0f0f" }}
+                >
+                  <p className="text-sm mb-4" style={{ color: "#888888" }}>
+                    No invoices yet
+                  </p>
+                  <button
+                    onClick={() => router.push("/create")}
+                    className="px-6 py-2 rounded-xl text-white text-sm transition-all hover:opacity-90"
+                    style={{ background: "var(--spark)" }}
+                  >
+                    Create your first invoice
+                  </button>
+                </div>
+              ) : (
+                invoices.map((invoice, index) => (
+                  <div
+                    key={invoice.id}
+                    className="px-6 py-4 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+                    style={{
+                      background: index % 2 === 0 ? "#0f0f0f" : "#111111",
+                      borderBottom: index < invoices.length - 1 ? "1px solid #1a1a1a" : "none",
+                    }}
+                    onClick={() => router.push(`/invoice/${invoice.id}`)}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
+                          {invoice.title}
+                        </p>
+                        {invoice.handle && (
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{ background: "#1a1a2e", color: "#8888ff" }}
+                          >
+                            @{invoice.handle}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs" style={{ color: "#555555" }}>
+                        {formatDate(invoice.createdAt)}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
+                        {invoice.amount} {invoice.token}
+                      </p>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full"
+                        style={{
+                          background: `${getStatusColor(invoice)}22`,
+                          color: getStatusColor(invoice),
+                        }}
+                      >
+                        {getStatusLabel(invoice)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

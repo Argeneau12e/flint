@@ -45,6 +45,18 @@ export async function getInvoiceByHandle(handle: string): Promise<Invoice | null
   return getInvoice(id);
 }
 
+export async function getInvoicesByWallet(walletAddress: string): Promise<Invoice[]> {
+  const keys = await kv.keys("invoice:*");
+  const invoices: Invoice[] = [];
+  for (const key of keys) {
+    const invoice = await kv.get<Invoice>(key);
+    if (invoice && invoice.recipientWallet === walletAddress) {
+      invoices.push(invoice);
+    }
+  }
+  return invoices.sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function updateInvoiceStatus(
   id: string,
   status: string,

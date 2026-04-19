@@ -53,6 +53,13 @@ export default function Home() {
         <p className="text-sm" style={{ color: "#555555" }}>
           No wallet setup required for the payer
         </p>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+          style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}
+        >
+          View Dashboard
+        </button>
       </div>
 
       <div
