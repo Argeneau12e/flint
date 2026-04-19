@@ -15,6 +15,9 @@ export default function CreatePage() {
   const [condition, setCondition] = useState("");
   const [splits, setSplits] = useState<Array<{wallet: string, percentage: number, label: string}>>([]);
   const [showSplits, setShowSplits] = useState(false);
+  const [recurring, setRecurring] = useState(false);
+  const [recurringInterval, setRecurringInterval] = useState("monthly");
+  const [recurringCount, setRecurringCount] = useState("12");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +47,13 @@ export default function CreatePage() {
       const res = await fetch("/api/invoice/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, amount, token, memo, expiryDays, recipientWallet, handle, condition, splits: splits.length > 0 ? splits : undefined }),
+        body: JSON.stringify({
+          title, amount, token, memo, expiryDays, recipientWallet, handle, condition,
+          splits: splits.length > 0 ? splits : undefined,
+          recurring,
+          recurringInterval: recurring ? recurringInterval : undefined,
+          recurringCount: recurring ? Number(recurringCount) : undefined,
+        }),
       });
       const data = await res.json();
       if (data.id) {
@@ -303,6 +312,59 @@ export default function CreatePage() {
                 Total: {splits.reduce((s, sp) => s + sp.percentage, 0)}% (must equal 100%)
               </p>
             </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label style={labelStyle}>Recurring Payment</label>
+            <button
+              onClick={() => setRecurring(!recurring)}
+              className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
+              style={{
+                background: recurring ? "#1a1a0a" : "transparent",
+                border: "1px solid #2a2a2a",
+                color: recurring ? "var(--spark)" : "#555555",
+              }}
+            >
+              {recurring ? "Disable" : "Enable"}
+            </button>
+          </div>
+
+          {recurring && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label style={labelStyle}>Interval</label>
+                <select
+                  value={recurringInterval}
+                  onChange={(e) => setRecurringInterval(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div style={{ width: "120px" }}>
+                <label style={labelStyle}>Cycles</label>
+                <input
+                  value={recurringCount}
+                  onChange={(e) => setRecurringCount(e.target.value)}
+                  type="number"
+                  min="1"
+                  max="120"
+                  placeholder="12"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          )}
+          {recurring && (
+            <p className="text-xs mt-2" style={{ color: "#444444" }}>
+              Payer will be charged {recurringCount}x {recurringInterval}
+            </p>
           )}
         </div>
 

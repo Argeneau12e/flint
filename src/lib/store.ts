@@ -20,6 +20,10 @@ export interface Invoice {
   sellerVatId?: string;
   buyerReference?: string;
   splits?: Split[];
+  recurring?: boolean;
+  recurringInterval?: "daily" | "weekly" | "monthly";
+  recurringCount?: number;
+  recurringPaid?: number;
 }
 
 export interface LineItem {
