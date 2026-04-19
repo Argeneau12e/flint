@@ -261,7 +261,7 @@ export default function AgentPage() {
               style={{ background: "#111111", border: "1px solid #1f1f1f" }}
             >
               <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                AI Analysis — Powered by Gemini
+                AI Analysis — Llama 3.3 via Groq
               </p>
               <p className="text-sm" style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
                 {result.agentResponse}
@@ -338,7 +338,7 @@ export default function AgentPage() {
         )}
 
         <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
-          Powered by Flint Protocol · Gemini AI · Solana Devnet
+          Powered by Flint Protocol · Llama 3.3 via Groq · Solana Devnet
         </p>
       </div>
     </main>

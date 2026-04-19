@@ -32,10 +32,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) {
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
       return NextResponse.json(
-        { error: "Gemini API key not configured" },
+        { error: "Groq API key not configured" },
         { status: 500, headers: CORS }
       );
     }
@@ -61,26 +61,32 @@ Analyze this payment request and provide:
 
 Be concise and professional. Act as if you are actually processing this payment autonomously.`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+    const groqRes = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${groqApiKey}`,
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 300,
         }),
       }
     );
 
-    const geminiData = await geminiRes.json();
-    const agentResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ||
+    const groqData = await groqRes.json();
+    console.log("Groq response:", JSON.stringify(groqData).slice(0, 200));
+    const agentResponse = groqData.choices?.[0]?.message?.content ||
       "Agent analysis unavailable";
 
     const steps = [
       { step: 1, action: "Fetched invoice from Flint protocol", status: "complete", detail: `Invoice ID: ${invoice.id}` },
       { step: 2, action: "Validated invoice fields", status: "complete", detail: `Amount: ${invoice.amount} ${invoice.token}, Status: ${invoice.status}` },
-      { step: 3, action: "Checked expiry", status: "complete", detail: `Expires: ${new Date(invoice.expiresAt).toLocaleDateString()}` },
-      { step: 4, action: "Analyzed payment request with AI", status: "complete", detail: "Gemini AI analysis complete" },
+      { step: 3, action: "Checked expiry and conditions", status: "complete", detail: `Expires: ${new Date(invoice.expiresAt).toLocaleDateString()}` },
+      { step: 4, action: "Analyzed payment request with AI", status: "complete", detail: "Llama 3.3 analysis complete via Groq" },
       { step: 5, action: "Ready to execute payment transaction", status: invoice.status === "pending" ? "ready" : "skipped", detail: invoice.status === "pending" ? "Awaiting wallet signature" : `Invoice already ${invoice.status}` },
     ];
 
