@@ -7,7 +7,6 @@ import {
   LAMPORTS_PER_SOL,
   clusterApiUrl,
 } from "@solana/web3.js";
-
 import { getInvoice } from "@/lib/store";
 
 const ACTIONS_CORS_HEADERS = {
@@ -27,7 +26,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const invoice = getInvoice(id);
+  const invoice = await getInvoice(id);
 
   if (!invoice) {
     return NextResponse.json(
@@ -66,7 +65,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const invoice = getInvoice(id);
+  const invoice = await getInvoice(id);
 
   if (!invoice) {
     return NextResponse.json(
@@ -96,7 +95,6 @@ export async function POST(
     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
     const sender = new PublicKey(senderAddress);
     const recipient = new PublicKey(invoice.recipientWallet);
-
     const lamports = Math.round(invoice.amount * LAMPORTS_PER_SOL);
 
     const transaction = new Transaction().add(
@@ -121,7 +119,10 @@ export async function POST(
     const base64 = serialized.toString("base64");
 
     return NextResponse.json(
-      { transaction: base64, message: `Paying ${invoice.amount} ${invoice.token} for ${invoice.title}` },
+      {
+        transaction: base64,
+        message: `Paying ${invoice.amount} ${invoice.token} for ${invoice.title}`,
+      },
       { headers: ACTIONS_CORS_HEADERS }
     );
   } catch (err) {
