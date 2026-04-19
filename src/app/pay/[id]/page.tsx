@@ -1,0 +1,279 @@
+"use client";
+
+declare global {
+  interface Window {
+    solana?: {
+      connect: () => Promise<void>;
+      publicKey: { toString: () => string };
+      signAndSendTransaction: (tx: unknown) => Promise<{ signature: string }>;
+    };
+  }
+}
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+
+interface Invoice {
+  id: string;
+  title: string;
+  amount: number;
+  token: string;
+  memo: string;
+  recipientWallet: string;
+  createdAt: number;
+  expiresAt: number;
+  status: string;
+}
+
+export default function PayPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        const res = await fetch(`/api/invoice/create?id=${id}`);
+        const data = await res.json();
+        if (data.id) {
+          setInvoice(data);
+        }
+      } catch {
+        console.error("Failed to fetch invoice");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInvoice();
+  }, [id]);
+
+  const handlePay = async () => {
+    setError("");
+    setPaying(true);
+    try {
+      if (!window.solana) {
+        setError("No Solana wallet found. Please install Phantom wallet.");
+        setPaying(false);
+        return;
+      }
+      await window.solana.connect();
+      const res = await fetch(`/api/pay/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account: window.solana.publicKey.toString(),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        setPaying(false);
+        return;
+      }
+      const transaction = data.transaction;
+      const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
+      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+      const tx = Transaction.from(Buffer.from(transaction, "base64"));
+      const { signature } = await window.solana.signAndSendTransaction(tx);
+      console.log("Transaction signature:", signature);
+      await connection.confirmTransaction(signature, "confirmed");
+      setPaid(true);
+    } catch (err) {
+      console.error(err);
+      setError("Payment failed. Please try again.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const isExpired = invoice ? Date.now() > invoice.expiresAt : false;
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <p style={{ color: "#888888" }}>Loading payment request...</p>
+      </main>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl mb-2" style={{ color: "var(--chalk)" }}>
+            Payment request not found
+          </p>
+          <a href="/" style={{ color: "var(--spark)", fontSize: "14px" }}>
+            Back to Flint
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  if (paid) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-sm w-full text-center">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-6"
+            style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}
+          >
+            ✓
+          </div>
+          <h1
+            className="text-2xl font-medium mb-2"
+            style={{ color: "#4ade80" }}
+          >
+            Payment Sent
+          </h1>
+          <p className="text-sm mb-2" style={{ color: "#888888" }}>
+            {invoice.amount} {invoice.token} sent successfully
+          </p>
+          <p className="text-sm" style={{ color: "#555555" }}>
+            {invoice.title}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center px-6 py-12">
+      <div className="max-w-sm w-full">
+
+        {/* Flint branding */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
+            <polygon
+              points="32,6 54,18 54,46 32,58 10,46 10,18"
+              stroke="white"
+              strokeWidth="2.5"
+              fill="none"
+            />
+            <polyline
+              points="48,8 60,8 60,20"
+              stroke="#FF6B2B"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
+            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
+            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
+          </svg>
+          <span
+            className="text-sm font-medium tracking-widest"
+            style={{ color: "#888888" }}
+          >
+            FLINT
+          </span>
+        </div>
+
+        {/* Payment card */}
+        <div
+          className="rounded-2xl p-8 mb-4"
+          style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+        >
+          <p className="text-xs mb-1" style={{ color: "#555555" }}>
+            PAYMENT REQUEST
+          </p>
+          <h1
+            className="text-xl font-medium mb-6"
+            style={{ color: "var(--chalk)" }}
+          >
+            {invoice.title}
+          </h1>
+
+          {/* Amount */}
+          <div
+            className="flex items-center justify-center py-8 mb-6 rounded-xl"
+            style={{ background: "#0f0f0f" }}
+          >
+            <span
+              className="text-5xl font-medium"
+              style={{ color: "var(--spark)" }}
+            >
+              {invoice.amount}
+            </span>
+            <span
+              className="text-xl ml-2 mt-2"
+              style={{ color: "#888888" }}
+            >
+              {invoice.token}
+            </span>
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col gap-3 mb-6">
+            {invoice.memo && (
+              <div className="flex justify-between">
+                <p className="text-sm" style={{ color: "#555555" }}>
+                  Memo
+                </p>
+                <p className="text-sm" style={{ color: "var(--chalk)" }}>
+                  {invoice.memo}
+                </p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>
+                To
+              </p>
+              <p className="text-sm font-mono" style={{ color: "var(--chalk)" }}>
+                {invoice.recipientWallet.slice(0, 4)}...
+                {invoice.recipientWallet.slice(-4)}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>
+                Network
+              </p>
+              <p className="text-sm" style={{ color: "#4ade80" }}>
+                Solana Devnet
+              </p>
+            </div>
+          </div>
+
+          {/* Expired state */}
+          {isExpired ? (
+            <div
+              className="w-full py-4 rounded-xl text-center font-medium"
+              style={{ background: "#1a0a0a", color: "#ff6b6b" }}
+            >
+              This payment request has expired
+            </div>
+          ) : (
+            <button
+              onClick={handlePay}
+              disabled={paying}
+              className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+              style={{ background: "var(--spark)" }}
+            >
+              {paying ? "Confirming payment..." : `Pay ${invoice.amount} ${invoice.token}`}
+            </button>
+          )}
+
+          {error && (
+            <p
+              className="text-sm mt-3 px-4 py-3 rounded-xl"
+              style={{ background: "#1a0a0a", color: "#ff6b6b" }}
+            >
+              {error}
+            </p>
+          )}
+        </div>
+
+        <p className="text-center text-xs" style={{ color: "#333333" }}>
+          Powered by Flint · Secured by Solana
+        </p>
+
+      </div>
+    </main>
+  );
+}

@@ -1,0 +1,62 @@
+import { kv } from "./kv";
+
+export interface Invoice {
+  id: string;
+  title: string;
+  amount: number;
+  token: string;
+  memo: string;
+  recipientWallet: string;
+  createdAt: number;
+  expiresAt: number;
+  status: string;
+  condition?: string;
+  payerWallet?: string;
+  paidAt?: number;
+  txSignature?: string;
+  handle?: string;
+  lineItems?: LineItem[];
+  taxAmount?: number;
+  sellerVatId?: string;
+  buyerReference?: string;
+}
+
+export interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export async function saveInvoice(invoice: Invoice): Promise<void> {
+  await kv.set(`invoice:${invoice.id}`, invoice);
+  if (invoice.handle) {
+    await kv.set(`handle:${invoice.handle}`, invoice.id);
+  }
+}
+
+export async function getInvoice(id: string): Promise<Invoice | null> {
+  return kv.get<Invoice>(`invoice:${id}`);
+}
+
+export async function getInvoiceByHandle(handle: string): Promise<Invoice | null> {
+  const id = await kv.get<string>(`handle:${handle}`);
+  if (!id) return null;
+  return getInvoice(id);
+}
+
+export async function updateInvoiceStatus(
+  id: string,
+  status: string,
+  txSignature?: string,
+  payerWallet?: string
+): Promise<void> {
+  const invoice = await getInvoice(id);
+  if (invoice) {
+    invoice.status = status;
+    if (txSignature) invoice.txSignature = txSignature;
+    if (payerWallet) invoice.payerWallet = payerWallet;
+    if (status === "paid") invoice.paidAt = Date.now();
+    await saveInvoice(invoice);
+  }
+}
