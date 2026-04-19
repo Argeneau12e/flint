@@ -21,6 +21,7 @@ export default function InvoicePage() {
   const id = params.id as string;
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [copied, setCopied] = useState(false);
+  const [auditLog, setAuditLog] = useState<Array<{id: string, action: string, details: string, timestamp: number}>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +32,9 @@ export default function InvoicePage() {
         if (data.id) {
           setInvoice(data);
         }
+        const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
+        const auditData = await auditRes.json();
+        if (auditData.entries) setAuditLog(auditData.entries);
       } catch {
         console.error("Failed to fetch invoice");
       } finally {
@@ -266,6 +270,48 @@ export default function InvoicePage() {
             Payer scans this with their Solana wallet app
           </p>
         </div>
+
+        {/* Audit log */}
+        {auditLog.length > 0 && (
+          <div
+            className="rounded-2xl p-6 mb-4"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+          >
+            <p
+              className="text-xs mb-4"
+              style={{
+                color: "#555555",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Activity Log
+            </p>
+            <div className="flex flex-col gap-3">
+              {auditLog.map((entry) => (
+                <div key={entry.id} className="flex items-start gap-3">
+                  <div
+                    className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                    style={{
+                      background: entry.action === "paid" ? "#4ade80" : "var(--spark)",
+                    }}
+                  />
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: "var(--chalk)" }}>
+                      {entry.action === "created" ? "Invoice created" : "Payment received"}
+                    </p>
+                    <p className="text-xs" style={{ color: "#555555" }}>
+                      {entry.details}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#333333" }}>
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Share buttons */}
         <div className="flex gap-3">
