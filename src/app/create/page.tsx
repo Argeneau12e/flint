@@ -12,6 +12,7 @@ export default function CreatePage() {
   const [expiryDays, setExpiryDays] = useState("7");
   const [recipientWallet, setRecipientWallet] = useState("");
   const [handle, setHandle] = useState("");
+  const [condition, setCondition] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,7 +27,7 @@ export default function CreatePage() {
       const res = await fetch("/api/invoice/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, amount, token, memo, expiryDays, recipientWallet, handle }),
+        body: JSON.stringify({ title, amount, token, memo, expiryDays, recipientWallet, handle, condition }),
       });
       const data = await res.json();
       if (data.id) {
@@ -178,6 +179,29 @@ export default function CreatePage() {
           </div>
           <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
             Anyone can pay you at this permanent link
+          </p>
+        </div>
+
+        <div>
+          <label style={labelStyle}>
+            Payment Condition
+            <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
+              (optional)
+            </span>
+          </label>
+          <input
+            value={condition}
+            onChange={(e) => setCondition(e.target.value)}
+            placeholder="e.g. Deliver mockups before payment releases"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{
+              background: "#0f0f0f",
+              border: "1px solid #2a2a2a",
+              color: "var(--chalk)",
+            }}
+          />
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+            Condition the payer must meet before payment is valid
           </p>
         </div>
 
