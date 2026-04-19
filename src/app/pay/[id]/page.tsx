@@ -23,8 +23,8 @@ interface Invoice {
   createdAt: number;
   expiresAt: number;
   status: string;
+  condition?: string;
 }
-
 export default function PayPage() {
   const params = useParams();
   const id = params.id as string;
@@ -218,6 +218,19 @@ export default function PayPage() {
                 </p>
                 <p className="text-sm" style={{ color: "var(--chalk)" }}>
                   {invoice.memo}
+                </p>
+              </div>
+            )}
+            {invoice.condition && (
+              <div
+                className="px-4 py-3 rounded-xl"
+                style={{ background: "#1a1500", border: "1px solid #3a3000" }}
+              >
+                <p className="text-xs font-medium mb-1" style={{ color: "#FFB800" }}>
+                  CONDITION
+                </p>
+                <p className="text-sm" style={{ color: "#FFB800" }}>
+                  {invoice.condition}
                 </p>
               </div>
             )}
