@@ -19,6 +19,7 @@ export interface Invoice {
   taxAmount?: number;
   sellerVatId?: string;
   buyerReference?: string;
+  splits?: Split[];
 }
 
 export interface LineItem {
@@ -26,6 +27,12 @@ export interface LineItem {
   quantity: number;
   unitPrice: number;
   total: number;
+}
+
+export interface Split {
+  wallet: string;
+  percentage: number;
+  label?: string;
 }
 
 export async function saveInvoice(invoice: Invoice): Promise<void> {

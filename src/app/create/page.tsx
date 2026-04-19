@@ -13,6 +13,8 @@ export default function CreatePage() {
   const [recipientWallet, setRecipientWallet] = useState("");
   const [handle, setHandle] = useState("");
   const [condition, setCondition] = useState("");
+  const [splits, setSplits] = useState<Array<{wallet: string, percentage: number, label: string}>>([]);
+  const [showSplits, setShowSplits] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -42,7 +44,7 @@ export default function CreatePage() {
       const res = await fetch("/api/invoice/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, amount, token, memo, expiryDays, recipientWallet, handle, condition }),
+        body: JSON.stringify({ title, amount, token, memo, expiryDays, recipientWallet, handle, condition, splits: splits.length > 0 ? splits : undefined }),
       });
       const data = await res.json();
       if (data.id) {
@@ -218,6 +220,90 @@ export default function CreatePage() {
           <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
             Condition the payer must meet before payment is valid
           </p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label style={labelStyle}>Split Payment</label>
+            <button
+              onClick={() => {
+                setShowSplits(!showSplits);
+                if (!showSplits && splits.length === 0) {
+                  setSplits([{ wallet: "", percentage: 50, label: "" }]);
+                }
+              }}
+              className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
+              style={{
+                background: showSplits ? "#1a1a0a" : "transparent",
+                border: "1px solid #2a2a2a",
+                color: showSplits ? "var(--spark)" : "#555555",
+              }}
+            >
+              {showSplits ? "Remove splits" : "Add splits"}
+            </button>
+          </div>
+
+          {showSplits && (
+            <div className="flex flex-col gap-3">
+              {splits.map((split, index) => (
+                <div key={index} className="flex gap-2 items-center">
+                  <input
+                    value={split.label}
+                    onChange={(e) => {
+                      const updated = [...splits];
+                      updated[index].label = e.target.value;
+                      setSplits(updated);
+                    }}
+                    placeholder="Label"
+                    className="w-24 px-3 py-2 rounded-xl text-xs outline-none"
+                    style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+                  />
+                  <input
+                    value={split.wallet}
+                    onChange={(e) => {
+                      const updated = [...splits];
+                      updated[index].wallet = e.target.value;
+                      setSplits(updated);
+                    }}
+                    placeholder="Wallet address"
+                    className="flex-1 px-3 py-2 rounded-xl text-xs outline-none font-mono"
+                    style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+                  />
+                  <input
+                    value={split.percentage}
+                    onChange={(e) => {
+                      const updated = [...splits];
+                      updated[index].percentage = Number(e.target.value);
+                      setSplits(updated);
+                    }}
+                    type="number"
+                    min="1"
+                    max="100"
+                    className="w-16 px-3 py-2 rounded-xl text-xs outline-none"
+                    style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--spark)" }}
+                  />
+                  <span className="text-xs" style={{ color: "#555555" }}>%</span>
+                  <button
+                    onClick={() => setSplits(splits.filter((_, i) => i !== index))}
+                    className="text-xs px-2 py-2 rounded-lg"
+                    style={{ background: "#1a0a0a", color: "#ff6b6b" }}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setSplits([...splits, { wallet: "", percentage: 0, label: "" }])}
+                className="text-xs py-2 rounded-xl transition-all hover:opacity-80"
+                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "#888888" }}
+              >
+                Add recipient
+              </button>
+              <p className="text-xs" style={{ color: "#444444" }}>
+                Total: {splits.reduce((s, sp) => s + sp.percentage, 0)}% (must equal 100%)
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (

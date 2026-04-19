@@ -94,16 +94,38 @@ export async function POST(
 
     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
     const sender = new PublicKey(senderAddress);
-    const recipient = new PublicKey(invoice.recipientWallet);
-    const lamports = Math.round(invoice.amount * LAMPORTS_PER_SOL);
+    const totalLamports = Math.round(invoice.amount * LAMPORTS_PER_SOL);
 
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: sender,
-        toPubkey: recipient,
-        lamports,
-      })
-    );
+    const transaction = new Transaction();
+
+    if (invoice.splits && invoice.splits.length > 0) {
+      const totalPercentage = invoice.splits.reduce((s, sp) => s + sp.percentage, 0);
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        return NextResponse.json(
+          { error: "Split percentages must add up to 100%" },
+          { status: 400, headers: ACTIONS_CORS_HEADERS }
+        );
+      }
+      for (const split of invoice.splits) {
+        const splitLamports = Math.round(totalLamports * (split.percentage / 100));
+        transaction.add(
+          SystemProgram.transfer({
+            fromPubkey: sender,
+            toPubkey: new PublicKey(split.wallet),
+            lamports: splitLamports,
+          })
+        );
+      }
+    } else {
+      const recipient = new PublicKey(invoice.recipientWallet);
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sender,
+          toPubkey: recipient,
+          lamports: totalLamports,
+        })
+      );
+    }
 
     const { blockhash, lastValidBlockHeight } =
       await connection.getLatestBlockhash();
