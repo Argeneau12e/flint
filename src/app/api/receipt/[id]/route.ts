@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInvoice, updateInvoiceStatus } from "@/lib/store";
+import { getInvoice, updateInvoiceStatus, addAuditEntry } from "@/lib/store";
 import { triggerWebhook } from "@/lib/webhook";
+
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -86,6 +87,7 @@ export async function POST(
     if (updatedInvoice) {
       await triggerWebhook(updatedInvoice);
     }
+    await addAuditEntry(id, "paid", `Payment received — tx: ${txSignature}`, payerWallet);
 
     const receipt = {
       "@context": "https://flint-rust.vercel.app/api/schema",

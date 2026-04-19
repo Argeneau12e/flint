@@ -24,6 +24,7 @@ export interface Invoice {
   recurringInterval?: "daily" | "weekly" | "monthly";
   recurringCount?: number;
   recurringPaid?: number;
+  webhookUrl?: string;
 }
 
 export interface LineItem {
@@ -114,4 +115,37 @@ export async function getTemplatesByWallet(walletAddress: string): Promise<Templ
 
 export async function deleteTemplate(id: string): Promise<void> {
   await kv.delete(`template:${id}`);
+}
+
+export interface AuditEntry {
+  id: string;
+  invoiceId: string;
+  action: string;
+  details: string;
+  timestamp: number;
+  wallet?: string;
+}
+
+export async function addAuditEntry(invoiceId: string, action: string, details: string, wallet?: string): Promise<void> {
+  const entry: AuditEntry = {
+    id: `${invoiceId}-${Date.now()}`,
+    invoiceId,
+    action,
+    details,
+    timestamp: Date.now(),
+    wallet,
+  };
+  await kv.set(`audit:${entry.id}`, entry);
+}
+
+export async function getAuditLog(invoiceId: string): Promise<AuditEntry[]> {
+  const keys = await kv.keys("audit:*");
+  const entries: AuditEntry[] = [];
+  for (const key of keys) {
+    const entry = await kv.get<AuditEntry>(key);
+    if (entry && entry.invoiceId === invoiceId) {
+      entries.push(entry);
+    }
+  }
+  return entries.sort((a, b) => a.timestamp - b.timestamp);
 }

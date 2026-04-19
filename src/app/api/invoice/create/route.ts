@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { saveInvoice, getInvoice, getInvoiceByHandle } from "@/lib/store";
+import { addAuditEntry } from "@/lib/store";
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
     };
 
     await saveInvoice(invoice);
+    await addAuditEntry(id, "created", `Invoice created for ${invoice.amount} ${invoice.token}`);
 
     return NextResponse.json({ id, invoice });
   } catch {
