@@ -119,13 +119,22 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => router.push("/create")}
-            className="px-5 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "var(--spark)" }}
-          >
-            New Invoice
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push("/templates")}
+              className="px-5 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}
+            >
+              Templates
+            </button>
+            <button
+              onClick={() => router.push("/create")}
+              className="px-5 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "var(--spark)" }}
+            >
+              New Invoice
+            </button>
+          </div>
         </div>
 
         {/* Not connected */}

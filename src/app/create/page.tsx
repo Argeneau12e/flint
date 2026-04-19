@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CreatePage() {
   const router = useRouter();
@@ -15,6 +15,21 @@ export default function CreatePage() {
   const [condition, setCondition] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const t = searchParams.get("title");
+    const a = searchParams.get("amount");
+    const tok = searchParams.get("token");
+    const m = searchParams.get("memo");
+    const e = searchParams.get("expiryDays");
+    if (t) setTitle(t);
+    if (a) setAmount(a);
+    if (tok) setToken(tok);
+    if (m) setMemo(m);
+    if (e) setExpiryDays(e);
+  }, [searchParams]);
 
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Please add a title."); return; }

@@ -72,3 +72,35 @@ export async function updateInvoiceStatus(
     await saveInvoice(invoice);
   }
 }
+
+export interface Template {
+  id: string;
+  name: string;
+  title: string;
+  amount: number;
+  token: string;
+  memo: string;
+  expiryDays: number;
+  createdAt: number;
+  walletAddress: string;
+}
+
+export async function saveTemplate(template: Template): Promise<void> {
+  await kv.set(`template:${template.id}`, template);
+}
+
+export async function getTemplatesByWallet(walletAddress: string): Promise<Template[]> {
+  const keys = await kv.keys("template:*");
+  const templates: Template[] = [];
+  for (const key of keys) {
+    const template = await kv.get<Template>(key);
+    if (template && template.walletAddress === walletAddress) {
+      templates.push(template);
+    }
+  }
+  return templates.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await kv.delete(`template:${id}`);
+}
