@@ -68,6 +68,13 @@ export default function Home() {
           >
             AI Agent Demo
           </button>
+          <button
+            onClick={() => router.push("/embed-demo")}
+            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#1a1a2e", border: "1px solid #8888ff", color: "#8888ff" }}
+          >
+            Embed Button
+          </button>
         </div>
       </div>
 

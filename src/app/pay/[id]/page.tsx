@@ -192,10 +192,17 @@ export default function PayPage() {
               `https://explorer.solana.com/tx/${txSig}?cluster=devnet`,
               "_blank"
             )}
-            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 mb-3"
             style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
           >
             View on Solana Explorer
+          </button>
+          <button
+            onClick={() => window.open(`/verify/${txSig}`, "_blank")}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#0a1a0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+          >
+            Share Verified Receipt
           </button>
 
           <p className="text-center text-xs mt-4" style={{ color: "#333333" }}>
