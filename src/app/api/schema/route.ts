@@ -106,7 +106,12 @@ const schema = {
     "spec": "/spec",
     "actions": "/api/pay/{id}",
     "invoice": "/api/invoice/create?id={id}",
-    "handle": "/api/invoice/create?handle={handle}"
+    "handle": "/api/invoice/create?handle={handle}",
+    "x402": "/api/x402/{id}",
+    "escrow": "/api/escrow?invoiceId={id}",
+    "receipt": "/api/receipt/{id}",
+    "verify": "/verify/{txSignature}",
+    "analytics": "/analytics"
   }
 };
 
