@@ -25,6 +25,7 @@ export interface Invoice {
   recurringCount?: number;
   recurringPaid?: number;
   webhookUrl?: string;
+  escrowAddress?: string;
 }
 
 export interface LineItem {
