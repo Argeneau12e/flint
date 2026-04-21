@@ -24,6 +24,7 @@ interface Invoice {
   expiresAt: number;
   status: string;
   condition?: string;
+  escrowAddress?: string;
 }
 export default function PayPage() {
   const params = useParams();
@@ -33,6 +34,9 @@ export default function PayPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [txSig, setTxSig] = useState("");
+  const [escrowMode, setEscrowMode] = useState(false);
+  const [escrowed, setEscrowed] = useState(false);
+  const [escrowAddress, setEscrowAddress] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -325,13 +329,74 @@ export default function PayPage() {
             </div>
           </div>
 
-          {/* Expired state */}
           {isExpired ? (
             <div
               className="w-full py-4 rounded-xl text-center font-medium"
               style={{ background: "#1a0a0a", color: "#ff6b6b" }}
             >
               This payment request has expired
+            </div>
+          ) : escrowed ? (
+            <div
+              className="flex flex-col gap-3"
+            >
+              <div
+                className="w-full py-4 rounded-xl text-center"
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}
+              >
+                Funds held in escrow
+              </div>
+              <p className="text-xs text-center font-mono" style={{ color: "#555555" }}>
+                {escrowAddress.slice(0, 8)}...{escrowAddress.slice(-8)}
+              </p>
+            </div>
+          ) : invoice.condition ? (
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handlePay}
+                disabled={paying}
+                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--spark)" }}
+              >
+                {paying ? "Confirming..." : `Pay ${invoice.amount} ${invoice.token}`}
+              </button>
+              <button
+                onClick={async () => {
+                  if (!window.solana) return;
+                  setPaying(true);
+                  try {
+                    await window.solana.connect();
+                    const res = await fetch("/api/escrow", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        invoiceId: id,
+                        payerAddress: window.solana.publicKey.toString(),
+                        action: "fund",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.transaction) {
+                      const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
+                      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+                      const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
+                      const { signature } = await window.solana.signAndSendTransaction(tx);
+                      try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
+                      setEscrowAddress(data.escrowAddress);
+                      setEscrowed(true);
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setPaying(false);
+                  }
+                }}
+                disabled={paying}
+                className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}
+              >
+                {paying ? "Processing..." : "Hold in Escrow Until Condition Met"}
+              </button>
             </div>
           ) : (
             <button

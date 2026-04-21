@@ -14,7 +14,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { invoiceId, agentWallet } = body;
+    const { invoiceId, agentWallet, spendCap, allowedRecipients } = body;
 
     if (!invoiceId || !agentWallet) {
       return NextResponse.json(
@@ -82,6 +82,17 @@ Be concise and professional. Act as if you are actually processing this payment 
     const agentResponse = groqData.choices?.[0]?.message?.content ||
       "Agent analysis unavailable";
 
+    const policyViolations: string[] = [];
+    if (spendCap && invoice.amount > Number(spendCap)) {
+      policyViolations.push(`Amount ${invoice.amount} ${invoice.token} exceeds spend cap of ${spendCap}`);
+    }
+    if (allowedRecipients && allowedRecipients.length > 0) {
+      if (!allowedRecipients.includes(invoice.recipientWallet)) {
+        policyViolations.push(`Recipient ${invoice.recipientWallet.slice(0, 8)}... is not in allowlist`);
+      }
+    }
+    const policyApproved = policyViolations.length === 0;
+
     const steps = [
       { step: 1, action: "Fetched invoice from Flint protocol", status: "complete", detail: `Invoice ID: ${invoice.id}` },
       { step: 2, action: "Validated invoice fields", status: "complete", detail: `Amount: ${invoice.amount} ${invoice.token}, Status: ${invoice.status}` },
@@ -94,7 +105,9 @@ Be concise and professional. Act as if you are actually processing this payment 
       invoice,
       agentResponse,
       steps,
-      approved: invoice.status === "pending" && Date.now() < invoice.expiresAt,
+      approved: invoice.status === "pending" && Date.now() < invoice.expiresAt && policyApproved,
+      policyViolations,
+      policyApproved,
     }, { headers: CORS });
 
   } catch (err) {

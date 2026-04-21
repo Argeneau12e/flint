@@ -38,6 +38,9 @@ export default function AgentPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [txSig, setTxSig] = useState("");
+  const [spendCap, setSpendCap] = useState("1");
+  const [allowedRecipients, setAllowedRecipients] = useState("");
+  const [policyViolations, setPolicyViolations] = useState<string[]>([]);
 
   const runAgent = async () => {
     if (!invoiceId.trim()) {
@@ -68,7 +71,14 @@ export default function AgentPage() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId, agentWallet }),
+        body: JSON.stringify({
+          invoiceId,
+          agentWallet,
+          spendCap: spendCap || undefined,
+          allowedRecipients: allowedRecipients
+            ? allowedRecipients.split(",").map((s) => s.trim()).filter(Boolean)
+            : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -77,7 +87,7 @@ export default function AgentPage() {
         return;
       }
 
-      setResult(data);
+      setPolicyViolations(data.policyViolations || []);
       setCurrentStep(5);
     } catch {
       setError("Agent failed. Please try again.");
@@ -196,6 +206,36 @@ export default function AgentPage() {
               {error}
             </p>
           )}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <p className="text-xs mb-2" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Spend Cap
+              </p>
+              <input
+                value={spendCap}
+                onChange={(e) => setSpendCap(e.target.value)}
+                placeholder="Max SOL amount"
+                type="number"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+              />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs mb-2" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Allowed Recipients
+              </p>
+              <input
+                value={allowedRecipients}
+                onChange={(e) => setAllowedRecipients(e.target.value)}
+                placeholder="wallet1,wallet2 (optional)"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
+                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+              />
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: "#444444" }}>
+            Agent will reject payments exceeding spend cap or to non-allowlisted wallets
+          </p>
           <button
             onClick={runAgent}
             disabled={running}
@@ -250,6 +290,20 @@ export default function AgentPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {policyViolations.length > 0 && (
+          <div
+            className="rounded-2xl p-4 mb-4"
+            style={{ background: "#1a0a0a", border: "1px solid #3a0a0a" }}
+          >
+            <p className="text-xs font-medium mb-2" style={{ color: "#ff6b6b" }}>
+              POLICY VIOLATIONS — Payment blocked
+            </p>
+            {policyViolations.map((v, i) => (
+              <p key={i} className="text-sm" style={{ color: "#ff6b6b" }}>• {v}</p>
+            ))}
           </div>
         )}
 
