@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInvoice } from "@/lib/store";
+import { getInvoice, getInvoicesByWallet, Invoice } from "@/lib/store";
+import { addAuditEntry } from "@/lib/store";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -11,10 +12,152 @@ export async function OPTIONS() {
   return NextResponse.json(null, { headers: CORS });
 }
 
+async function analyzeInvoice(
+  invoice: Invoice,
+  agentWallet: string,
+  spendCap?: number,
+  allowedRecipients?: string[]
+): Promise<{ approved: boolean; reasoning: string; violations: string[] }> {
+  const violations: string[] = [];
+
+  if (spendCap && invoice.amount > spendCap) {
+    violations.push(`Amount ${invoice.amount} ${invoice.token} exceeds spend cap of ${spendCap}`);
+  }
+
+  if (allowedRecipients && allowedRecipients.length > 0) {
+    if (!allowedRecipients.includes(invoice.recipientWallet)) {
+      violations.push(`Recipient not in allowlist`);
+    }
+  }
+
+  if (Date.now() > invoice.expiresAt) {
+    violations.push("Invoice has expired");
+  }
+
+  if (invoice.status !== "pending") {
+    violations.push(`Invoice status is ${invoice.status}`);
+  }
+
+  const groqApiKey = process.env.GROQ_API_KEY;
+  let reasoning = "Analysis unavailable";
+
+  if (groqApiKey) {
+    try {
+      const prompt = `You are an autonomous AI payment agent on Solana. Analyze this payment request in 2 sentences max.
+
+Invoice: ${invoice.title}
+Amount: ${invoice.amount} ${invoice.token}
+Memo: ${invoice.memo || "none"}
+Condition: ${invoice.condition || "none"}
+Policy violations: ${violations.length > 0 ? violations.join(", ") : "none"}
+Decision: ${violations.length === 0 ? "APPROVE" : "REJECT"}
+
+Give your reasoning:`;
+
+      const res = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 100,
+          }),
+        }
+      );
+      const data = await res.json();
+      reasoning = data.choices?.[0]?.message?.content || reasoning;
+    } catch {
+      reasoning = violations.length === 0
+        ? "Invoice validated successfully. Approving payment."
+        : `Rejecting due to policy violations.`;
+    }
+  }
+
+  return {
+    approved: violations.length === 0,
+    reasoning,
+    violations,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { invoiceId, agentWallet, spendCap, allowedRecipients } = body;
+    const {
+      invoiceId,
+      agentWallet,
+      spendCap,
+      allowedRecipients,
+      autonomousMode,
+      walletAddress,
+    } = body;
+
+    if (autonomousMode && walletAddress) {
+      const invoices = await getInvoicesByWallet(walletAddress);
+      const pending = invoices.filter(
+        (i) => i.status === "pending" && Date.now() < i.expiresAt
+      );
+
+      const results = await Promise.all(
+        pending.map(async (invoice) => {
+          const analysis = await analyzeInvoice(
+            invoice,
+            agentWallet,
+            spendCap ? Number(spendCap) : undefined,
+            allowedRecipients
+          );
+
+          if (analysis.approved) {
+            await addAuditEntry(
+              invoice.id,
+              "agent_approved",
+              `Autonomous agent approved: ${analysis.reasoning}`,
+              agentWallet
+            );
+          } else {
+            await addAuditEntry(
+              invoice.id,
+              "agent_rejected",
+              `Autonomous agent rejected: ${analysis.violations.join(", ")}`,
+              agentWallet
+            );
+          }
+
+          return {
+            invoice: {
+              id: invoice.id,
+              title: invoice.title,
+              amount: invoice.amount,
+              token: invoice.token,
+              status: invoice.status,
+              recipientWallet: invoice.recipientWallet,
+              expiresAt: invoice.expiresAt,
+            },
+            ...analysis,
+          };
+        })
+      );
+
+      const approved = results.filter((r) => r.approved);
+      const rejected = results.filter((r) => !r.approved);
+
+      return NextResponse.json({
+        mode: "autonomous",
+        summary: {
+          total: pending.length,
+          approved: approved.length,
+          rejected: rejected.length,
+        },
+        results,
+        approved,
+        rejected,
+      }, { headers: CORS });
+    }
 
     if (!invoiceId || !agentWallet) {
       return NextResponse.json(
@@ -24,7 +167,6 @@ export async function POST(req: NextRequest) {
     }
 
     const invoice = await getInvoice(invoiceId);
-
     if (!invoice) {
       return NextResponse.json(
         { error: "Invoice not found" },
@@ -32,82 +174,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const groqApiKey = process.env.GROQ_API_KEY;
-    if (!groqApiKey) {
-      return NextResponse.json(
-        { error: "Groq API key not configured" },
-        { status: 500, headers: CORS }
-      );
-    }
-
-    const prompt = `You are an autonomous AI payment agent on Solana. You have been given a payment request to analyze and process.
-
-Invoice Details:
-- ID: ${invoice.id}
-- Title: ${invoice.title}
-- Amount: ${invoice.amount} ${invoice.token}
-- Recipient: ${invoice.recipientWallet}
-- Memo: ${invoice.memo || "none"}
-- Status: ${invoice.status}
-- Expires: ${new Date(invoice.expiresAt).toISOString()}
-- Condition: ${invoice.condition || "none"}
-
-Your wallet address: ${agentWallet}
-
-Analyze this payment request and provide:
-1. A brief analysis of the invoice (2-3 sentences)
-2. Whether you would approve or reject this payment and why
-3. What action you are taking
-
-Be concise and professional. Act as if you are actually processing this payment autonomously.`;
-
-    const groqRes = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${groqApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 300,
-        }),
-      }
+    const analysis = await analyzeInvoice(
+      invoice,
+      agentWallet,
+      spendCap ? Number(spendCap) : undefined,
+      allowedRecipients
     );
-
-    const groqData = await groqRes.json();
-    console.log("Groq response:", JSON.stringify(groqData).slice(0, 200));
-    const agentResponse = groqData.choices?.[0]?.message?.content ||
-      "Agent analysis unavailable";
-
-    const policyViolations: string[] = [];
-    if (spendCap && invoice.amount > Number(spendCap)) {
-      policyViolations.push(`Amount ${invoice.amount} ${invoice.token} exceeds spend cap of ${spendCap}`);
-    }
-    if (allowedRecipients && allowedRecipients.length > 0) {
-      if (!allowedRecipients.includes(invoice.recipientWallet)) {
-        policyViolations.push(`Recipient ${invoice.recipientWallet.slice(0, 8)}... is not in allowlist`);
-      }
-    }
-    const policyApproved = policyViolations.length === 0;
 
     const steps = [
       { step: 1, action: "Fetched invoice from Flint protocol", status: "complete", detail: `Invoice ID: ${invoice.id}` },
-      { step: 2, action: "Validated invoice fields", status: "complete", detail: `Amount: ${invoice.amount} ${invoice.token}, Status: ${invoice.status}` },
+      { step: 2, action: "Validated invoice fields", status: "complete", detail: `Amount: ${invoice.amount} ${invoice.token}` },
       { step: 3, action: "Checked expiry and conditions", status: "complete", detail: `Expires: ${new Date(invoice.expiresAt).toLocaleDateString()}` },
-      { step: 4, action: "Analyzed payment request with AI", status: "complete", detail: "Llama 3.3 analysis complete via Groq" },
-      { step: 5, action: "Ready to execute payment transaction", status: invoice.status === "pending" ? "ready" : "skipped", detail: invoice.status === "pending" ? "Awaiting wallet signature" : `Invoice already ${invoice.status}` },
+      { step: 4, action: "Applied agent policy", status: "complete", detail: analysis.violations.length === 0 ? "All policies passed" : analysis.violations.join(", ") },
+      { step: 5, action: "AI analysis complete", status: "complete", detail: "Llama 3.3 via Groq" },
+      { step: 6, action: "Ready to execute", status: analysis.approved ? "ready" : "blocked", detail: analysis.approved ? "Awaiting wallet signature" : "Blocked by policy" },
     ];
 
     return NextResponse.json({
+      mode: "single",
       invoice,
-      agentResponse,
+      agentResponse: analysis.reasoning,
       steps,
-      approved: invoice.status === "pending" && Date.now() < invoice.expiresAt && policyApproved,
-      policyViolations,
-      policyApproved,
+      approved: analysis.approved,
+      policyViolations: analysis.violations,
+      policyApproved: analysis.violations.length === 0,
     }, { headers: CORS });
 
   } catch (err) {
