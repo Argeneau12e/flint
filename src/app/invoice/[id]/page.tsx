@@ -247,6 +247,13 @@ export default function InvoicePage() {
           >
             {copied ? "Copied!" : "Copy Payment Link"}
           </button>
+          <button
+            onClick={() => window.open(`/analytics`, "_blank")}
+            className="w-full py-2 rounded-xl text-xs font-medium transition-all hover:opacity-80 mt-2"
+            style={{ background: "#0a1a0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+          >
+            View Protocol Analytics
+          </button>
         </div>
 
         {/* QR Code */}

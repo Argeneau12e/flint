@@ -187,6 +187,25 @@ export default function DashboardPage() {
         {/* Stats */}
         {connected && !loading && stats && (
           <>
+        
+            <div className="flex gap-3 mb-6">
+              {[
+                { label: "Analytics", path: "/analytics", color: "#4ade80", bg: "#0a1a0a", border: "#1a3a1a" },
+                { label: "Templates", path: "/templates", color: "#888888", bg: "#111111", border: "#2a2a2a" },
+                { label: "Agent", path: "/agent", color: "#FF6B2B", bg: "#1a1a0a", border: "#FF6B2B" },
+                { label: "Spec", path: "/spec", color: "#8888ff", bg: "#1a1a2e", border: "#8888ff" },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => router.push(item.path)}
+                  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-80"
+                  style={{ background: item.bg, border: `1px solid ${item.border}`, color: item.color }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            
             <div className="grid grid-cols-2 gap-4 mb-8" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
               {[
                 { label: "Total Earned", value: `${stats.totalEarned}`, suffix: "mixed" },
