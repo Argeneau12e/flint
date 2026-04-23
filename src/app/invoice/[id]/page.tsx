@@ -14,6 +14,9 @@ interface Invoice {
   createdAt: number;
   expiresAt: number;
   status: string;
+  escrowAddress?: string;
+  webhookUrl?: string;
+  condition?: string;
 }
 
 export default function InvoicePage() {
@@ -22,7 +25,11 @@ export default function InvoicePage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [copied, setCopied] = useState(false);
   const [auditLog, setAuditLog] = useState<Array<{id: string, action: string, details: string, timestamp: number}>>([]);
+  const [releasingEscrow, setReleasingEscrow] = useState(false);
+  const [testingWebhook, setTestingWebhook] = useState(false);
+  const [webhookResult, setWebhookResult] = useState("");
   const [loading, setLoading] = useState(true);
+  
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -312,6 +319,122 @@ export default function InvoicePage() {
             </div>
           </div>
         )}
+
+        {/* Escrow release */}
+        {invoice?.escrowAddress && invoice?.status !== "paid" && (
+          <div
+            className="rounded-2xl p-6 mb-4"
+            style={{ background: "#1a1500", border: "1px solid #3a3000" }}
+          >
+            <p className="text-xs mb-2 font-medium" style={{ color: "#FFB800" }}>
+              FUNDS IN ESCROW
+            </p>
+            <p className="text-xs font-mono mb-4" style={{ color: "#888888" }}>
+              {invoice.escrowAddress.slice(0, 8)}...{invoice.escrowAddress.slice(-8)}
+            </p>
+            <p className="text-xs mb-4" style={{ color: "#888888" }}>
+              Condition: {invoice.condition || "none"}
+            </p>
+            <button
+              onClick={async () => {
+                if (!window.solana) return;
+                setReleasingEscrow(true);
+                try {
+                  await window.solana.connect();
+                  const res = await fetch("/api/escrow", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      invoiceId: id,
+                      payerAddress: window.solana.publicKey.toString(),
+                      action: "release",
+                    }),
+                  });
+                  const data = await res.json();
+                  if (data.transaction) {
+                    const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
+                    const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+                    const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
+                    const { signature } = await window.solana.signAndSendTransaction(tx);
+                    try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
+                    window.location.reload();
+                  }
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setReleasingEscrow(false);
+                }
+              }}
+              disabled={releasingEscrow}
+              className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: "#FFB800", color: "#0f0f0f" }}
+            >
+              {releasingEscrow ? "Releasing..." : "Release Escrow to Recipient"}
+            </button>
+          </div>
+        )}
+
+        {/* Webhook test */}
+        {invoice?.webhookUrl && (
+          <div
+            className="rounded-2xl p-6 mb-4"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+          >
+            <p className="text-xs mb-2" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Webhook
+            </p>
+            <p className="text-xs font-mono mb-4" style={{ color: "#888888" }}>
+              {invoice.webhookUrl}
+            </p>
+            <button
+              onClick={async () => {
+                setTestingWebhook(true);
+                setWebhookResult("");
+                try {
+                  const res = await fetch(invoice.webhookUrl!, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Flint-Event": "test" },
+                    body: JSON.stringify({ event: "test", invoiceId: id, timestamp: Date.now() }),
+                  });
+                  setWebhookResult(res.ok ? "Webhook delivered successfully" : `Failed: ${res.status}`);
+                } catch {
+                  setWebhookResult("Webhook delivery failed — check URL");
+                } finally {
+                  setTestingWebhook(false);
+                }
+              }}
+              disabled={testingWebhook}
+              className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: "#111111", border: "1px solid #2a2a2a", color: "#888888" }}
+            >
+              {testingWebhook ? "Testing..." : "Test Webhook"}
+            </button>
+            {webhookResult && (
+              <p className="text-xs mt-2 text-center"
+                style={{ color: webhookResult.includes("success") ? "#4ade80" : "#ff6b6b" }}>
+                {webhookResult}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Export */}
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={() => window.open(`/api/ubl?id=${id}`, "_blank")}
+            className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+          >
+            Export UBL XML
+          </button>
+          <button
+            onClick={() => window.open(`/api/receipt/${id}`, "_blank")}
+            className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+          >
+            View Receipt JSON
+          </button>
+        </div>
 
         {/* Share buttons */}
         <div className="flex gap-3">
