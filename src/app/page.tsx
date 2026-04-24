@@ -86,6 +86,11 @@ export default function Home() {
             style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#555555" }}>
             Protocol Spec
           </button>
+          <button onClick={() => router.push("/business")}
+            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#555555" }}>
+            Business Model
+          </button>
         </div>
       </div>
 
@@ -135,18 +140,18 @@ export default function Home() {
       {/* Protocol features */}
       <div className="w-full max-w-2xl grid grid-cols-2 gap-3 mb-8">
         {[
-          { icon: "⚡", title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
-          { icon: "🤖", title: "AI Agent Executable", desc: "Autonomous agents read and pay invoices via JSON-LD" },
-          { icon: "🔒", title: "Escrow + Conditions", desc: "Enforceable conditions with PDA escrow" },
+          { icon: "→", title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
+          { icon: "◈", title: "AI Agent Executable", desc: "Autonomous agents read and pay invoices via JSON-LD" },
+          { icon: "◻", title: "Escrow + Conditions", desc: "Enforceable conditions with PDA escrow" },
           { icon: "✓", title: "On-chain Receipts", desc: "Every payment is publicly verifiable forever" },
-          { icon: "⚙", title: "x402 Compatible", desc: "Standard agentic payment response layer" },
-          { icon: "📄", title: "UBL 2.1 Export", desc: "B2B/PEPPOL-grade invoice compliance" },
+          { icon: "⬡", title: "x402 Compatible", desc: "Standard agentic payment response layer" },
+          { icon: "≡", title: "UBL 2.1 Export", desc: "B2B/PEPPOL-grade invoice compliance" },
         ].map((f) => (
           <div key={f.title}
             className="rounded-xl p-4"
             style={{ background: "#111111", border: "1px solid #1f1f1f" }}
           >
-            <p className="text-lg mb-1">{f.icon}</p>
+            <p className="text-lg font-medium mb-2" style={{ color: "var(--spark)" }}>{f.icon}</p>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
               {f.title}
             </p>
