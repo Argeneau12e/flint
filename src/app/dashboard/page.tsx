@@ -245,9 +245,18 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
                   Invoices
                 </p>
-                <p className="text-xs" style={{ color: "#555555" }}>
-                  {invoices.length} total
-                </p>
+                <div className="flex items-center gap-3">
+              <p className="text-xs" style={{ color: "#555555" }}>
+                {invoices.length} total
+              </p>
+              <button
+                onClick={() => router.push("/analytics")}
+                className="text-xs px-3 py-1 rounded-full transition-all hover:opacity-80"
+                style={{ background: "#0a1a1a", color: "#4ade80", border: "1px solid #1a3a1a" }}
+              >
+                Analytics
+              </button>
+            </div>
               </div>
 
               {invoices.length === 0 ? (
@@ -299,6 +308,7 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
                         {invoice.amount} {invoice.token}
                       </p>
+                      <div className="flex items-center gap-2">
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
@@ -308,6 +318,19 @@ export default function DashboardPage() {
                       >
                         {getStatusLabel(invoice)}
                       </span>
+                      {invoice.txSignature && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`/verify/${invoice.txSignature}`, "_blank");
+                          }}
+                          className="text-xs px-2 py-0.5 rounded-full transition-all hover:opacity-80"
+                          style={{ background: "#0a1a0a", color: "#4ade80", border: "1px solid #1a3a1a" }}
+                        >
+                          Verify
+                        </button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 ))
