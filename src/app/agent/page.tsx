@@ -428,7 +428,13 @@ export default function AgentPage() {
                     Approved Payments ({autonomousResult.approved.length})
                   </p>
                   {autonomousResult.approved.length > 1 && (
-                    <button onClick={executeAllApproved} disabled={paying}
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Execute ${autonomousResult.approved.length} payments? This cannot be undone.`)) {
+                          executeAllApproved();
+                        }
+                      }}
+                      disabled={paying}
                       className="px-4 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-90 disabled:opacity-50"
                       style={{ background: "var(--spark)", color: "white" }}>
                       {paying ? "Executing all..." : "Execute All"}

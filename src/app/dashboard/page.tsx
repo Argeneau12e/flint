@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [wallet, setWallet] = useState("");
   const [connected, setConnected] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -72,6 +73,11 @@ export default function DashboardPage() {
     });
   };
 
+  const formatStat = (value: number, suffix = "") => {
+    if (stats?.total === 0) return "—";
+    return `${value}${suffix}`;
+  };
+  
   const getStatusColor = (invoice: Invoice) => {
     if (invoice.status === "paid") return "#4ade80";
     if (Date.now() > invoice.expiresAt) return "#ff6b6b";
@@ -209,7 +215,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 mb-8" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
               {[
                 { label: "Total Earned", value: `${stats.totalEarned}`, suffix: "mixed" },
-                { label: "Success Rate", value: `${stats.successRate}%`, suffix: "" },
+                { label: "Success Rate", value: stats.total === 0 ? "—" : `${stats.successRate}%`, suffix: "" },
                 { label: "Total Invoices", value: `${stats.total}`, suffix: "" },
                 { label: "Paid", value: `${stats.paid}`, suffix: "", color: "#4ade80" },
                 { label: "Pending", value: `${stats.pending}`, suffix: "", color: "#FFB800" },
@@ -243,19 +249,20 @@ export default function DashboardPage() {
                 style={{ background: "#111111", borderBottom: "1px solid #1f1f1f" }}
               >
                 <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
-                  Invoices
+                  Invoice History
                 </p>
                 <div className="flex items-center gap-3">
-              <p className="text-xs" style={{ color: "#555555" }}>
-                {invoices.length} total
-              </p>
-              <button
-                onClick={() => router.push("/analytics")}
-                className="text-xs px-3 py-1 rounded-full transition-all hover:opacity-80"
-                style={{ background: "#0a1a1a", color: "#4ade80", border: "1px solid #1a3a1a" }}
-              >
-                Analytics
-              </button>
+                  <p className="text-xs" style={{ color: "#555555" }}>
+                    {invoices.length} total
+                  </p>
+                  <button
+                    onClick={() => setShowAllInvoices(!showAllInvoices)}
+                    className="flex items-center gap-1 text-xs px-3 py-1 rounded-full transition-all hover:opacity-80"
+                    style={{ background: "#1a1a0a", color: "var(--spark)", border: "1px solid #2a2a0a" }}
+                  >
+                    {showAllInvoices ? "Show less" : "View all"}
+                    <span style={{ fontSize: "10px" }}>{showAllInvoices ? "‹" : "›"}</span>
+                  </button>
             </div>
               </div>
 
@@ -276,7 +283,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
               ) : (
-                invoices.map((invoice, index) => (
+                (showAllInvoices ? invoices : invoices.slice(0, 2)).map((invoice, index) => (
                   <div
                     key={invoice.id}
                     className="px-6 py-4 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
@@ -284,7 +291,13 @@ export default function DashboardPage() {
                       background: index % 2 === 0 ? "#0f0f0f" : "#111111",
                       borderBottom: index < invoices.length - 1 ? "1px solid #1a1a1a" : "none",
                     }}
-                    onClick={() => router.push(`/invoice/${invoice.id}`)}
+                    onClick={() => {
+                      if (invoice.status === "paid") {
+                        router.push(`/verify/${invoice.txSignature}`);
+                      } else {
+                        router.push(`/invoice/${invoice.id}`);
+                      }
+                    }}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
