@@ -182,6 +182,39 @@ export default function Home() {
         ))}
       </div>
 
+    {/* Footer */}
+      <div
+        className="w-full max-w-2xl flex items-center justify-between mt-12 pt-6"
+        style={{ borderTop: "1px solid #1a1a1a" }}
+      >
+        <p className="text-xs" style={{ color: "#333333" }}>
+          Flint · FRS-1 · MIT License
+        </p>
+        <div className="flex gap-4">
+          {[
+            { label: "Spec", path: "/spec" },
+            { label: "Business", path: "/business" },
+            { label: "Analytics", path: "/analytics" },
+            { label: "GitHub", path: "https://github.com/Argeneau12e/flint" },
+          ].map((link) => (
+            <button
+              key={link.label}
+              onClick={() => {
+                if (link.path.startsWith("http")) {
+                  window.open(link.path, "_blank");
+                } else {
+                  router.push(link.path);
+                }
+              }}
+              className="text-xs transition-all hover:opacity-70"
+              style={{ color: "#444444", background: "none", border: "none", cursor: "pointer" }}
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
     </main>
   );
 }
