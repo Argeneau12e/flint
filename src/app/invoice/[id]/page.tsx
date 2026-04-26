@@ -72,7 +72,7 @@ export default function InvoicePage() {
       } catch {
         console.error("Polling error");
       }
-    }, 5000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [id]);
@@ -103,109 +103,113 @@ export default function InvoicePage() {
 
   const downloadReceipt = async (format: "pdf" | "image") => {
     if (!invoice) return;
-    const verifyUrl = `${window.location.origin}/verify/${invoice.txSignature}`;
+    const verifyUrl = `https://flint-rust.vercel.app/verify/${invoice.txSignature}`;
     const shortTx = invoice.txSignature
       ? `${invoice.txSignature.slice(0, 24)}...${invoice.txSignature.slice(-8)}`
       : "";
 
     if (format === "image") {
       const canvas = document.createElement("canvas");
-      canvas.width = 800;
-      canvas.height = 480;
+      canvas.width = 900;
+      canvas.height = 500;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       // Background
       ctx.fillStyle = "#0f0f0f";
-      ctx.fillRect(0, 0, 800, 480);
+      ctx.fillRect(0, 0, 900, 500);
 
       // Left accent bar
       ctx.fillStyle = "#FF6B2B";
-      ctx.fillRect(0, 0, 6, 480);
+      ctx.fillRect(0, 0, 8, 500);
 
-      // Top section background
+      // Header band
       ctx.fillStyle = "#111111";
-      ctx.fillRect(6, 0, 794, 100);
+      ctx.fillRect(8, 0, 892, 90);
 
-      // FLINT wordmark
+      // FLINT
       ctx.fillStyle = "#FF6B2B";
-      ctx.font = "bold 32px -apple-system, sans-serif";
-      ctx.fillText("FLINT", 40, 55);
+      ctx.font = "bold 36px Arial, sans-serif";
+      ctx.fillText("FLINT", 40, 48);
 
-      // Payment Receipt label
+      // Receipt label
       ctx.fillStyle = "#888888";
-      ctx.font = "14px -apple-system, sans-serif";
-      ctx.fillText("PAYMENT RECEIPT", 40, 80);
+      ctx.font = "12px Arial, sans-serif";
+      ctx.letterSpacing = "3px";
+      ctx.fillText("PAYMENT RECEIPT", 40, 72);
 
-      // Verified badge area
+      // Verified circle
       ctx.fillStyle = "#4ade80";
       ctx.beginPath();
-      ctx.arc(740, 50, 24, 0, Math.PI * 2);
+      ctx.arc(840, 45, 28, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "white";
-      ctx.font = "bold 20px -apple-system, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 22px Arial, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("✓", 740, 58);
+      ctx.fillText("✓", 840, 53);
       ctx.textAlign = "left";
 
       // Divider
-      ctx.fillStyle = "#1f1f1f";
-      ctx.fillRect(40, 110, 720, 1);
+      ctx.fillStyle = "#222222";
+      ctx.fillRect(40, 100, 820, 1);
 
       // Invoice title
       ctx.fillStyle = "#f7f7f5";
-      ctx.font = "bold 22px -apple-system, sans-serif";
-      ctx.fillText(invoice.title, 40, 150);
+      ctx.font = "bold 26px Arial, sans-serif";
+      ctx.fillText(invoice.title.slice(0, 40), 40, 145);
 
-      // Amount — large
+      // Amount
       ctx.fillStyle = "#FF6B2B";
-      ctx.font = "bold 42px -apple-system, sans-serif";
-      ctx.fillText(`${invoice.amount}`, 40, 220);
+      ctx.font = "bold 52px Arial, sans-serif";
+      const amtText = `${invoice.amount}`;
+      ctx.fillText(amtText, 40, 220);
       ctx.fillStyle = "#888888";
-      ctx.font = "20px -apple-system, sans-serif";
-      ctx.fillText(invoice.token, 40 + ctx.measureText(`${invoice.amount}`).width + 10, 220);
+      ctx.font = "24px Arial, sans-serif";
+      ctx.fillText(` ${invoice.token}`, 40 + ctx.measureText(amtText).width, 220);
 
-      // Details
+      // Details row
+      const detailY = 265;
       ctx.fillStyle = "#555555";
-      ctx.font = "13px -apple-system, sans-serif";
-      ctx.fillText("DATE", 40, 265);
-      ctx.fillText("STATUS", 300, 265);
-      ctx.fillText("NETWORK", 560, 265);
+      ctx.font = "11px Arial, sans-serif";
+      ctx.fillText("DATE", 40, detailY);
+      ctx.fillText("STATUS", 260, detailY);
+      ctx.fillText("NETWORK", 480, detailY);
 
       ctx.fillStyle = "#f7f7f5";
-      ctx.font = "14px -apple-system, sans-serif";
-      ctx.fillText(invoice.paidAt ? formatDate(invoice.paidAt) : "—", 40, 285);
+      ctx.font = "bold 14px Arial, sans-serif";
+      ctx.fillText(invoice.paidAt ? formatDate(invoice.paidAt) : "—", 40, detailY + 20);
       ctx.fillStyle = "#4ade80";
-      ctx.fillText("Paid", 300, 285);
+      ctx.fillText("Paid", 260, detailY + 20);
       ctx.fillStyle = "#f7f7f5";
-      ctx.fillText("Solana Devnet", 560, 285);
+      ctx.fillText("Solana Devnet", 480, detailY + 20);
 
       // Divider
-      ctx.fillStyle = "#1f1f1f";
-      ctx.fillRect(40, 305, 720, 1);
+      ctx.fillStyle = "#222222";
+      ctx.fillRect(40, 305, 820, 1);
 
       // Transaction
       ctx.fillStyle = "#555555";
-      ctx.font = "11px -apple-system, sans-serif";
-      ctx.fillText("TRANSACTION", 40, 330);
+      ctx.font = "11px Arial, sans-serif";
+      ctx.fillText("TRANSACTION SIGNATURE", 40, 330);
       ctx.fillStyle = "#FF6B2B";
       ctx.font = "11px monospace";
       ctx.fillText(shortTx, 40, 350);
 
-      // Verify URL
+      // Verify
       ctx.fillStyle = "#555555";
-      ctx.font = "11px -apple-system, sans-serif";
+      ctx.font = "11px Arial, sans-serif";
       ctx.fillText("VERIFY AT", 40, 385);
       ctx.fillStyle = "#4ade80";
       ctx.font = "11px monospace";
-      ctx.fillText(`flint-rust.vercel.app/verify/${invoice.txSignature?.slice(0, 20)}...`, 40, 405);
+      const shortVerify = `flint-rust.vercel.app/verify/${invoice.txSignature?.slice(0, 16)}...`;
+      ctx.fillText(shortVerify, 40, 405);
 
-      // Bottom bar
+      // Footer
       ctx.fillStyle = "#111111";
-      ctx.fillRect(6, 440, 794, 40);
-      ctx.fillStyle = "#333333";
-      ctx.font = "11px -apple-system, sans-serif";
-      ctx.fillText("Generated by Flint · flint-rust.vercel.app · Secured by Solana", 40, 465);
+      ctx.fillRect(8, 455, 892, 45);
+      ctx.fillStyle = "#444444";
+      ctx.font = "11px Arial, sans-serif";
+      ctx.fillText("Generated by Flint  ·  flint-rust.vercel.app  ·  Secured by Solana Blockchain", 40, 480);
 
       const link = document.createElement("a");
       link.download = `flint-receipt-${id.slice(0, 8)}.png`;
