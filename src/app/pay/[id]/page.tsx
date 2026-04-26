@@ -42,12 +42,12 @@ export default function PayPage() {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const res = await fetch(`/api/invoice/create?id=${id}`);
+        const res = await fetch(`/api/invoice/status?id=${id}`);
         const data = await res.json();
-        if (data.id) {
-          setInvoice(data);
+        if (data.invoice) {
+          setInvoice(data.invoice);
           if (data.status === "paid") {
-            setTxSig(data.txSignature || "");
+            setTxSig(data.invoice.txSignature || "");
             setPaid(true);
           }
         }
@@ -57,7 +57,27 @@ export default function PayPage() {
         setLoading(false);
       }
     };
+
     fetchInvoice();
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/invoice/status?id=${id}`);
+        const data = await res.json();
+        if (data.invoice) {
+          setInvoice(data.invoice);
+          if (data.status === "paid") {
+            setTxSig(data.invoice.txSignature || "");
+            setPaid(true);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        console.error("Polling error");
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [id]);
 
   const handlePay = async () => {

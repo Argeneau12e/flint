@@ -343,6 +343,20 @@ export default function DashboardPage() {
                           Verify
                         </button>
                       )}
+                      {invoice.status === "pending" && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm("Cancel this invoice?")) return;
+                            await fetch(`/api/invoice/create?id=${invoice.id}`, { method: "DELETE" });
+                            fetchDashboard(wallet);
+                          }}
+                          className="text-xs px-2 py-0.5 rounded-full transition-all hover:opacity-80"
+                          style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #3a0a0a" }}
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                     </div>
                   </div>

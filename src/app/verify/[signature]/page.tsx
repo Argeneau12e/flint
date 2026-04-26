@@ -88,6 +88,21 @@ export default function VerifyPage() {
     <main className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="max-w-sm w-full">
 
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+            <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
+              stroke="white" strokeWidth="2.5" fill="none" />
+            <polyline points="48,8 60,8 60,20"
+              stroke="#FF6B2B" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
+            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
+            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
+          </svg>
+          <span className="text-sm font-medium tracking-widest"
+            style={{ color: "#888888" }}>FLINT</span>
+        </div>
+
         <div className="text-center mb-8">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"

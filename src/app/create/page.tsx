@@ -38,6 +38,16 @@ function CreatePageInner() {
     if (e) setExpiryDays(e);
   }, [searchParams]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        handleSubmit();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [title, amount, recipientWallet, token, memo, expiryDays, handle, condition, webhookUrl]);
+
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Please add a title."); return; }
     if (!amount || Number(amount) <= 0) { setError("Please enter a valid amount."); return; }
@@ -90,9 +100,12 @@ function CreatePageInner() {
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="max-w-lg mx-auto mb-10">
-        <a href="/" style={{ color: "var(--spark)", fontSize: "14px" }}>
+        <button
+          onClick={() => router.push("/")}
+          style={{ color: "var(--spark)", fontSize: "14px", background: "none", border: "none", cursor: "pointer" }}
+        >
           Back to Flint
-        </a>
+        </button>
         <h1 className="text-3xl font-medium tracking-wide mt-4 mb-2" style={{ color: "var(--chalk)" }}>
           New Payment Request
         </h1>
@@ -163,7 +176,7 @@ function CreatePageInner() {
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="What is this payment for?"
-            rows={3}
+            rows={2}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
             style={inputStyle}
           />
@@ -185,57 +198,7 @@ function CreatePageInner() {
           </select>
         </div>
 
-        <div>
-          <label style={labelStyle}>
-            Flint Handle
-            <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
-              (optional)
-            </span>
-          </label>
-          <div className="flex items-center rounded-xl overflow-hidden"
-            style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}>
-            <span className="px-3 py-3 text-sm flex-shrink-0"
-              style={{ color: "#555555", borderRight: "1px solid #2a2a2a" }}>
-              flint.pay/to/
-            </span>
-            <input
-              value={handle}
-              onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-              placeholder="yourname"
-              className="flex-1 px-3 py-3 text-sm outline-none"
-              style={{ background: "transparent", color: "var(--chalk)" }}
-            />
-          </div>
-          <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
-            Anyone can pay you at this permanent link
-          </p>
-        </div>
-
-        <div>
-          <label style={labelStyle}>
-            Payment Condition
-            <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
-              (optional)
-            </span>
-          </label>
-          <input
-            value={condition}
-            onChange={(e) => setCondition(e.target.value)}
-            placeholder="e.g. Deliver mockups before payment releases"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={{
-              background: "#0f0f0f",
-              border: "1px solid #2a2a2a",
-              color: "var(--chalk)",
-            }}
-          />
-          <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
-            Condition the payer must meet before payment is valid
-          </p>
-        </div>
-
-        
-{/* Advanced toggle */}
+        {/* Advanced toggle */}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4"
@@ -249,6 +212,47 @@ function CreatePageInner() {
 
         {showAdvanced && (
           <>
+            <div>
+              <label style={labelStyle}>
+                Flint Handle
+                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional)</span>
+              </label>
+              <div className="flex items-center rounded-xl overflow-hidden"
+                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}>
+                <span className="px-3 py-3 text-sm flex-shrink-0"
+                  style={{ color: "#555555", borderRight: "1px solid #2a2a2a" }}>
+                  flint.pay/to/
+                </span>
+                <input
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  placeholder="yourname"
+                  className="flex-1 px-3 py-3 text-sm outline-none"
+                  style={{ background: "transparent", color: "var(--chalk)" }}
+                />
+              </div>
+              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+                Anyone can pay you at this permanent link
+              </p>
+            </div>
+
+            <div>
+              <label style={labelStyle}>
+                Payment Condition
+                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional)</span>
+              </label>
+              <input
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                placeholder="e.g. Deliver mockups before payment releases"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={inputStyle}
+              />
+              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+                Condition the payer must meet before payment is valid
+              </p>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label style={labelStyle}>Split Payment</label>
@@ -386,55 +390,8 @@ function CreatePageInner() {
 
             <div>
               <label style={labelStyle}>
-                Payment Condition
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
-                  (optional)
-                </span>
-              </label>
-              <input
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-                placeholder="e.g. Deliver mockups before payment releases"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                style={inputStyle}
-              />
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
-                Condition the payer must meet before payment is valid
-              </p>
-            </div>
-
-            <div>
-              <label style={labelStyle}>
-                Flint Handle
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
-                  (optional)
-                </span>
-              </label>
-              <div className="flex items-center rounded-xl overflow-hidden"
-                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}>
-                <span className="px-3 py-3 text-sm flex-shrink-0"
-                  style={{ color: "#555555", borderRight: "1px solid #2a2a2a" }}>
-                  flint.pay/to/
-                </span>
-                <input
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                  placeholder="yourname"
-                  className="flex-1 px-3 py-3 text-sm outline-none"
-                  style={{ background: "transparent", color: "var(--chalk)" }}
-                />
-              </div>
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
-                Anyone can pay you at this permanent link
-              </p>
-            </div>
-
-            <div>
-              <label style={labelStyle}>
                 Webhook URL
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>
-                  (optional — for developers)
-                </span>
+                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional — for developers)</span>
               </label>
               <input
                 value={webhookUrl}
@@ -449,7 +406,6 @@ function CreatePageInner() {
             </div>
           </>
         )}
-        
 
         {error && (
           <p className="text-sm px-4 py-3 rounded-xl"
@@ -468,7 +424,7 @@ function CreatePageInner() {
         </button>
 
         <p className="text-center text-xs" style={{ color: "#333333" }}>
-          The payer needs no account. Just a Solana wallet.
+          The payer needs no account. Just a Solana wallet. · Press Ctrl+Enter to submit
         </p>
       </div>
     </main>

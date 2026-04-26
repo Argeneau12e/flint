@@ -19,6 +19,8 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const formatNum = (n: number) => n.toLocaleString("en-US");
+
   const fetchAnalytics = () => {
     setLoading(true);
     fetch("/api/analytics")
@@ -32,10 +34,7 @@ export default function AnalyticsPage() {
   }, []);
 
   const statCard = (label: string, value: string | number, sub?: string, color?: string) => (
-    <div
-      className="rounded-xl p-5"
-      style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-    >
+    <div className="rounded-xl p-5" style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
       <p className="text-xs mb-2" style={{ color: "#555555" }}>{label}</p>
       <p className="text-2xl font-medium" style={{ color: color || "var(--spark)" }}>{value}</p>
       {sub && <p className="text-xs mt-1" style={{ color: "#444444" }}>{sub}</p>}
@@ -90,15 +89,15 @@ export default function AnalyticsPage() {
         {data && (
           <>
             <div className="grid grid-cols-3 gap-4 mb-6">
-              {statCard("Total Invoices", data.invoices.total)}
+              {statCard("Total Invoices", formatNum(data.invoices.total))}
               {statCard("Success Rate", `${data.successRate}%`, undefined, "#4ade80")}
               {statCard("Total Volume", `${data.volume.total}`, "SOL + USDC")}
             </div>
 
             <div className="grid grid-cols-4 gap-4 mb-8">
-              {statCard("Paid", data.invoices.paid, undefined, "#4ade80")}
-              {statCard("Pending", data.invoices.pending, undefined, "#FFB800")}
-              {statCard("Expired", data.invoices.expired, undefined, "#ff6b6b")}
+              {statCard("Paid", formatNum(data.invoices.paid), undefined, "#4ade80")}
+              {statCard("Pending", formatNum(data.invoices.pending), undefined, "#FFB800")}
+              {statCard("Expired", formatNum(data.invoices.expired), undefined, "#ff6b6b")}
               {statCard("SOL Volume", data.volume.sol, "SOL")}
             </div>
 

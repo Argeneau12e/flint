@@ -38,10 +38,10 @@ export default function InvoicePage() {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const res = await fetch(`/api/invoice/create?id=${id}`);
+        const res = await fetch(`/api/invoice/status?id=${id}`);
         const data = await res.json();
-        if (data.id) {
-          setInvoice(data);
+        if (data.invoice) {
+          setInvoice(data.invoice);
           const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
           const auditData = await auditRes.json();
           if (auditData.entries) setAuditLog(auditData.entries);
@@ -52,7 +52,29 @@ export default function InvoicePage() {
         setLoading(false);
       }
     };
+
     fetchInvoice();
+
+    const interval = setInterval(async () => {
+      if (invoice?.status === "paid") return;
+      try {
+        const res = await fetch(`/api/invoice/status?id=${id}`);
+        const data = await res.json();
+        if (data.invoice) {
+          setInvoice(data.invoice);
+          if (data.status === "paid") {
+            const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
+            const auditData = await auditRes.json();
+            if (auditData.entries) setAuditLog(auditData.entries);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        console.error("Polling error");
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [id]);
 
   const paymentLink = typeof window !== "undefined"
@@ -535,7 +557,7 @@ export default function InvoicePage() {
               </p>
               <div className="p-4 rounded-xl" style={{ background: "white" }}>
                 <QRCode
-                value={`solana:${invoice.recipientWallet}?amount=${invoice.amount}&label=${encodeURIComponent(invoice.title)}&memo=${encodeURIComponent(invoice.memo || "")}`}
+                value={paymentLink}
                 size={160}
                 bgColor="#ffffff"
                 fgColor="#0f0f0f"
