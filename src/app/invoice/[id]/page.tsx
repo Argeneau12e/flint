@@ -190,15 +190,20 @@ export default function InvoicePage() {
             border: `1px solid ${isPaid ? "#1a3a1a" : "#1f1f1f"}`,
           }}
         >
-          <div className={isPaid ? "verified-badge" : undefined}
-            style={isPaid ? {} : {
-              width: "40px", height: "40px", borderRadius: "50%",
-              background: "#1a1a0a", border: "1px solid #2a2a0a",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "var(--spark)", fontSize: "18px", flexShrink: 0,
-            }}>
+          <div style={isPaid ? {
+            width: "40px", height: "40px", borderRadius: "50%",
+            background: "#4ade80", display: "flex", alignItems: "center",
+            justifyContent: "center", color: "white", fontSize: "18px",
+            fontWeight: 700, flexShrink: 0,
+          } : {
+            width: "40px", height: "40px", borderRadius: "50%",
+            background: "#1a1a0a", border: "1px solid #2a2a0a",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--spark)", fontSize: "18px", flexShrink: 0,
+          }}>
             {isPaid ? "✓" : "·"}
           </div>
+
           <div>
             <p className="font-medium" style={{ color: isPaid ? "#4ade80" : "var(--chalk)" }}>
               {isPaid ? "Payment received" : "Payment request created"}
@@ -372,7 +377,12 @@ export default function InvoicePage() {
                 Scan to Pay
               </p>
               <div className="p-4 rounded-xl" style={{ background: "white" }}>
-                <QRCode value={paymentLink} size={160} bgColor="#ffffff" fgColor="#0f0f0f" />
+                <QRCode
+                value={`solana:${invoice.recipientWallet}?amount=${invoice.amount}&label=${encodeURIComponent(invoice.title)}&memo=${encodeURIComponent(invoice.memo || "")}`}
+                size={160}
+                bgColor="#ffffff"
+                fgColor="#0f0f0f"
+              />
               </div>
               <p className="text-xs text-center" style={{ color: "#444444" }}>
                 Payer scans this with their Solana wallet app
