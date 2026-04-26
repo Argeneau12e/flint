@@ -257,15 +257,29 @@ export default function TemplatesPage() {
             className="rounded-2xl p-12 text-center"
             style={{ background: "#111111", border: "1px solid #1f1f1f" }}
           >
-            <p className="text-sm mb-4" style={{ color: "#888888" }}>
-              No templates yet. Save your first one.
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+              style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}
+            >
+              <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+                <rect x="12" y="8" width="40" height="48" rx="4" stroke="white" strokeWidth="2.5" fill="none" />
+                <line x1="20" y1="24" x2="44" y2="24" stroke="#FF6B2B" strokeWidth="2" strokeLinecap="round" />
+                <line x1="20" y1="34" x2="44" y2="34" stroke="#555555" strokeWidth="2" strokeLinecap="round" />
+                <line x1="20" y1="44" x2="36" y2="44" stroke="#555555" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-base font-medium mb-2" style={{ color: "var(--chalk)" }}>
+              No templates yet
+            </p>
+            <p className="text-sm mb-6" style={{ color: "#555555" }}>
+              Save your frequently used invoice configurations for one-click reuse.
             </p>
             <button
               onClick={() => setShowForm(true)}
               className="px-6 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
               style={{ background: "var(--spark)" }}
             >
-              Create Template
+              Create First Template
             </button>
           </div>
         )}

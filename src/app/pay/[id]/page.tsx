@@ -46,6 +46,10 @@ export default function PayPage() {
         const data = await res.json();
         if (data.id) {
           setInvoice(data);
+          if (data.status === "paid") {
+            setTxSig(data.txSignature || "");
+            setPaid(true);
+          }
         }
       } catch {
         console.error("Failed to fetch invoice");
@@ -140,10 +144,7 @@ export default function PayPage() {
       <main className="min-h-screen flex items-center justify-center px-6 py-12">
         <div className="max-w-sm w-full">
           <div className="text-center mb-8">
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4"
-              style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}
-            >
+            <div className="verified-badge-lg animate-scale-in mx-auto mb-4">
               ✓
             </div>
             <h1 className="text-2xl font-medium mb-1" style={{ color: "#4ade80" }}>
@@ -161,55 +162,62 @@ export default function PayPage() {
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
               <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
-                {invoice.amount} {invoice.token}
+                {invoice?.amount} {invoice?.token}
               </p>
             </div>
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Invoice</p>
               <p className="text-sm" style={{ color: "var(--chalk)" }}>
-                {invoice.title}
+                {invoice?.title}
               </p>
             </div>
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Network</p>
-              <p className="text-sm" style={{ color: "#4ade80" }}>
+              <p className="text-sm" style={{ color: "#888888" }}>
                 Solana Devnet
               </p>
             </div>
-            <div
-              style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}
-            >
+            <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}>
               <p className="text-xs mb-2" style={{ color: "#555555" }}>
                 Transaction Signature
               </p>
-              <p
-                className="text-xs font-mono break-all"
-                style={{ color: "var(--spark)" }}
-              >
+              <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>
                 {txSig}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => window.open(
-              `https://explorer.solana.com/tx/${txSig}?cluster=devnet`,
-              "_blank"
-            )}
-            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 mb-3"
-            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
-          >
-            View on Solana Explorer
-          </button>
-          <button
-            onClick={() => window.open(`/verify/${txSig}`, "_blank")}
-            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "#0a1a0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
-          >
-            Share Verified Receipt
-          </button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => window.open(
+                `https://explorer.solana.com/tx/${txSig}?cluster=devnet`,
+                "_blank"
+              )}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
+            >
+              View on Solana Explorer
+            </button>
+            <button
+              onClick={() => window.open(`/verify/${txSig}`, "_blank")}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "#0a1a0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+            >
+              Share Verified Receipt
+            </button>
+            <button
+              onClick={() => {
+                const msg = `Payment confirmed on Solana. Verify here: ${window.location.origin}/verify/${txSig}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+              }}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "#0a1f0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+            >
+              Share via WhatsApp
+            </button>
+          </div>
 
-          <p className="text-center text-xs mt-4" style={{ color: "#333333" }}>
+          <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
             Powered by Flint · Secured by Solana
           </p>
         </div>
@@ -267,7 +275,7 @@ export default function PayPage() {
 
           {/* Amount */}
           <div
-            className="flex items-center justify-center py-8 mb-6 rounded-xl"
+            className="flex items-center justify-center py-8 mb-6 rounded-2xl"
             style={{ background: "#0f0f0f" }}
           >
             <span
@@ -277,7 +285,7 @@ export default function PayPage() {
               {invoice.amount}
             </span>
             <span
-              className="text-xl ml-2 mt-2"
+              className="text-xl ml-3 mt-2"
               style={{ color: "#888888" }}
             >
               {invoice.token}
@@ -323,7 +331,7 @@ export default function PayPage() {
               <p className="text-sm" style={{ color: "#555555" }}>
                 Network
               </p>
-              <p className="text-sm" style={{ color: "#4ade80" }}>
+              <p className="text-sm" style={{ color: "#888888" }}>
                 Solana Devnet
               </p>
             </div>

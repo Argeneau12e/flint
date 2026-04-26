@@ -19,11 +19,16 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchAnalytics = () => {
+    setLoading(true);
     fetch("/api/analytics")
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
   }, []);
 
   const statCard = (label: string, value: string | number, sub?: string, color?: string) => (
@@ -58,12 +63,21 @@ export default function AnalyticsPage() {
                 Live usage data from the Flint Request Standard
               </p>
             </div>
+            <div className="flex items-center gap-2">
             <div
               className="px-3 py-1 rounded-full text-xs font-medium"
               style={{ background: "#0a1a0a", color: "#4ade80", border: "1px solid #1a3a1a" }}
             >
               LIVE
             </div>
+            <button
+              onClick={fetchAnalytics}
+              className="px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80"
+              style={{ background: "#111111", border: "1px solid #2a2a2a", color: "#888888" }}
+            >
+              Refresh
+            </button>
+          </div>
           </div>
         </div>
 

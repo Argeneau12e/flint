@@ -106,3 +106,27 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(invoice);
 }
+
+export async function DELETE(req: NextRequest) {
+  const url = new URL(req.url);
+  const id = url.searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "No ID provided" }, { status: 400 });
+  }
+
+  const invoice = await getInvoice(id);
+  if (!invoice) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  if (invoice.status === "paid") {
+    return NextResponse.json({ error: "Cannot cancel a paid invoice" }, { status: 400 });
+  }
+
+  invoice.status = "cancelled";
+  await saveInvoice(invoice);
+  await addAuditEntry(id, "cancelled", "Invoice cancelled by creator");
+
+  return NextResponse.json({ success: true });
+}
