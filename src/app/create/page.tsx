@@ -82,13 +82,15 @@ function CreatePageInner() {
   };
 
   const inputStyle = {
-    background: "#0f0f0f",
-    border: "1px solid #2a2a2a",
+    background: "rgba(15, 15, 15, 0.7)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
     color: "var(--chalk)",
   };
 
   const labelStyle = {
-    color: "#888888",
+    color: "#aaaaaa",
     fontSize: "11px",
     fontWeight: 500,
     letterSpacing: "0.1em",
@@ -114,8 +116,7 @@ function CreatePageInner() {
         </p>
       </div>
 
-      <div className="max-w-lg mx-auto rounded-2xl p-8 flex flex-col gap-6"
-        style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+      <div className="max-w-lg mx-auto rounded-2xl p-8 flex flex-col gap-6 glass">
 
         <div>
           <label style={labelStyle}>Invoice Title</label>
@@ -202,7 +203,7 @@ function CreatePageInner() {
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4"
-          style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "#888888" }}
+          style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.08)", color: "#aaaaaa" }}
         >
           <span>Advanced Options</span>
           <span style={{ fontSize: "12px", color: "var(--spark)" }}>

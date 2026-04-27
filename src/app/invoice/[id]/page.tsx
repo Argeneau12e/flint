@@ -56,18 +56,19 @@ export default function InvoicePage() {
     fetchInvoice();
 
     const interval = setInterval(async () => {
-      if (invoice?.status === "paid") return;
+      if (invoice?.status === "paid") {
+        clearInterval(interval);
+        return;
+      }
       try {
         const res = await fetch(`/api/invoice/status?id=${id}`);
         const data = await res.json();
-        if (data.invoice) {
+        if (data.status === "paid" && invoice?.status !== "paid") {
           setInvoice(data.invoice);
-          if (data.status === "paid") {
-            const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
-            const auditData = await auditRes.json();
-            if (auditData.entries) setAuditLog(auditData.entries);
-            clearInterval(interval);
-          }
+          const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
+          const auditData = await auditRes.json();
+          if (auditData.entries) setAuditLog(auditData.entries);
+          clearInterval(interval);
         }
       } catch {
         console.error("Polling error");
@@ -367,10 +368,9 @@ export default function InvoicePage() {
 
         {/* Status banner */}
         <div
-          className="mt-6 mb-8 px-6 py-4 rounded-2xl flex items-center gap-4"
+          className="glass-card mt-6 mb-8 px-6 py-4 rounded-2xl flex items-center gap-4"
           style={{
-            background: isPaid ? "#0a1a0a" : "#111111",
-            border: `1px solid ${isPaid ? "#1a3a1a" : "#1f1f1f"}`,
+            border: isPaid ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.06)",
           }}
         >
           <div style={isPaid ? {
@@ -398,8 +398,7 @@ export default function InvoicePage() {
         </div>
 
         {/* Invoice card */}
-        <div className="rounded-2xl p-8 mb-6"
-          style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+        <div className="glass-card rounded-2xl p-8 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-xs mb-1" style={{ color: "#555555" }}>INVOICE</p>
@@ -509,14 +508,12 @@ export default function InvoicePage() {
         ) : (
           <>
             {/* Payment link */}
-            <div className="rounded-2xl p-6 mb-6"
-              style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+            <div className="glass-card rounded-2xl p-6 mb-6">
               <p className="text-xs mb-3"
                 style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Payment Link
               </p>
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl mb-4"
-                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}>
+              <div className="glass-input flex items-center gap-3 px-4 py-3 rounded-xl mb-4">
                 <p className="text-sm font-mono flex-1 truncate" style={{ color: "var(--spark)" }}>
                   {paymentLink}
                 </p>
@@ -553,8 +550,7 @@ export default function InvoicePage() {
             </div>
 
             {/* QR Code */}
-            <div className="rounded-2xl p-6 mb-6 flex flex-col items-center gap-4"
-              style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+            <div className="glass-card rounded-2xl p-6 mb-6 flex flex-col items-center gap-4">
               <p className="text-xs"
                 style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Scan to Pay
@@ -623,8 +619,7 @@ export default function InvoicePage() {
 
         {/* Webhook test */}
         {invoice.webhookUrl && (
-          <div className="rounded-2xl p-6 mb-4"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+          <div className="glass-card rounded-2xl p-6 mb-4">
             <p className="text-xs mb-2"
               style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
               Webhook

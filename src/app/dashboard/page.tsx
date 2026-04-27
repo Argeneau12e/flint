@@ -146,8 +146,7 @@ export default function DashboardPage() {
         {/* Not connected */}
         {!connected && (
           <div
-            className="rounded-2xl p-12 text-center"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+            className="glass rounded-2xl p-12 text-center"
           >
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
@@ -223,8 +222,7 @@ export default function DashboardPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-xl p-4"
-                  style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+                  className="glass-card rounded-xl p-4"
                 >
                   <p className="text-xs mb-2" style={{ color: "#555555" }}>
                     {stat.label}
@@ -241,12 +239,11 @@ export default function DashboardPage() {
 
             {/* Invoice list */}
             <div
-              className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid #1f1f1f" }}
+              className="glass-card rounded-2xl overflow-hidden"
             >
               <div
                 className="px-6 py-4 flex items-center justify-between"
-                style={{ background: "#111111", borderBottom: "1px solid #1f1f1f" }}
+                style={{ background: "rgba(26,26,46,0.6)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
                   Invoice History

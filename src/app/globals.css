@@ -6,8 +6,9 @@
   --color-chalk: #f7f7f5;
   --color-midnight: #1a1a2e;
   --color-ash: #e8e8e4;
-  --font-sans: var(--font-geist-sans), 'DM Sans', -apple-system, sans-serif;
+  --font-sans: var(--font-inter), 'Inter', -apple-system, sans-serif;
   --font-mono: 'SF Mono', monospace;
+  --font-dm-sans: var(--font-dm-sans), 'DM Sans', sans-serif;
 }
 
 :root {
@@ -24,10 +25,15 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.01em;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(26, 26, 46, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 107, 43, 0.05) 0%, transparent 50%);
+  background-attachment: fixed;
 }
 
 h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
+  font-family: var(--font-dm-sans);
 }
 
 .verified-badge {
@@ -81,4 +87,48 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Glass utilities */
+.glass {
+  background: rgba(26, 26, 46, 0.60);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.glass-card {
+  background: rgba(26, 26, 46, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.glass-input {
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(15, 15, 15, 0.8), 0 0 0 4px rgba(255, 107, 43, 0.5);
+  transition: box-shadow 0.2s ease;
+}
+
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-snappy {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce), (max-width: 640px) {
+  .glass, .glass-card {
+    backdrop-filter: blur(12px) !important;
+  }
 }
