@@ -14,8 +14,14 @@ const inter = Inter({
   weight: ["300", "400", "500", "600"],
 });
 
+const baseUrl = "https://flint-rust.vercel.app";
+const ogImage = `${baseUrl}/api/og`;
+
 export const metadata: Metadata = {
-  title: "Flint",
+  title: {
+    default: "Flint",
+    template: "%s · Flint",
+  },
   icons: {
     icon: [
       { url: "/flint-icon-32.png", sizes: "32x32", type: "image/png" },
@@ -28,17 +34,25 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Flint — Programmable Payments on Solana",
     description: "Create shareable payment requests. Pay with any Solana wallet. Receipts on-chain.",
-    url: "https://flint-rust.vercel.app",
+    url: baseUrl,
     siteName: "Flint",
     type: "website",
-    images: [{ url: "https://flint-rust.vercel.app/api/og", width: 1200, height: 630 }],
+    images: [
+      {
+        url: ogImage,
+        width: 1200,
+        height: 630,
+        alt: "Flint — Programmable Payments on Solana",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Flint — Programmable Payments on Solana",
     description: "Create shareable payment requests. Pay with any Solana wallet. Receipts on-chain.",
-    images: ["https://flint-rust.vercel.app/api/og"],
+    images: [ogImage],
   },
+  metadataBase: new URL(baseUrl),
 };
 
 export default function RootLayout({

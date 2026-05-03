@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
+import FlintLoader from "@/components/flint-loader";
+
+const ChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
 
 interface Invoice {
   id: string;
@@ -31,9 +38,6 @@ export default function InvoicePage() {
   const [loading, setLoading] = useState(true);
   const [auditLog, setAuditLog] = useState<Array<{id: string, action: string, details: string, timestamp: number}>>([]);
   const [releasingEscrow, setReleasingEscrow] = useState(false);
-  const [testingWebhook, setTestingWebhook] = useState(false);
-  const [webhookResult, setWebhookResult] = useState("");
-  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -47,7 +51,7 @@ export default function InvoicePage() {
           if (auditData.entries) setAuditLog(auditData.entries);
         }
       } catch {
-        console.error("Failed to fetch invoice");
+        // silent
       } finally {
         setLoading(false);
       }
@@ -56,33 +60,30 @@ export default function InvoicePage() {
     fetchInvoice();
 
     let pollCount = 0;
-    const maxPolls = 8;
+    const maxPolls = 10;
     const interval = setInterval(async () => {
-      if (invoice?.status === "paid") {
-        clearInterval(interval);
-        return;
-      }
+      if (pollCount >= maxPolls) { clearInterval(interval); return; }
+      pollCount++;
       try {
         const res = await fetch(`/api/invoice/status?id=${id}`);
         const data = await res.json();
-        if (data.status === "paid" && invoice?.status !== "paid") {
+        if (data.status === "paid") {
           setInvoice(data.invoice);
+          clearInterval(interval);
           const auditRes = await fetch(`/api/audit?invoiceId=${id}`);
           const auditData = await auditRes.json();
           if (auditData.entries) setAuditLog(auditData.entries);
-          clearInterval(interval);
         }
-      } catch {
-        console.error("Polling error");
-      }
-    }, 15000);
+      } catch { /* silent */ }
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [id]);
 
-  const paymentLink = typeof window !== "undefined"
-    ? `${window.location.origin}/pay/${id}`
-    : "";
+  const paymentLink = typeof window !== "undefined" ? `${window.location.origin}/pay/${id}` : "";
+  const qrValue = typeof window !== "undefined"
+    ? `solana:${window.location.origin}/api/pay/${id}`
+    : `solana://api/pay/${id}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(paymentLink);
@@ -90,11 +91,8 @@ export default function InvoicePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    });
-  };
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const timeLeft = (expiresAt: number) => {
     const diff = expiresAt - Date.now();
@@ -106,113 +104,127 @@ export default function InvoicePage() {
 
   const downloadReceipt = async (format: "pdf" | "image") => {
     if (!invoice) return;
-    const verifyUrl = `https://flint-rust.vercel.app/verify/${invoice.txSignature}`;
+    const verifyUrl = `${window.location.origin}/verify/${invoice.txSignature}`;
     const shortTx = invoice.txSignature
-      ? `${invoice.txSignature.slice(0, 24)}...${invoice.txSignature.slice(-8)}`
+      ? `${invoice.txSignature.slice(0, 28)}...${invoice.txSignature.slice(-8)}`
       : "";
 
     if (format === "image") {
+      const W = 1000, H = 560;
       const canvas = document.createElement("canvas");
-      canvas.width = 900;
-      canvas.height = 500;
+      canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       // Background
-      ctx.fillStyle = "#0f0f0f";
-      ctx.fillRect(0, 0, 900, 500);
+      ctx.fillStyle = "#0d0d0d";
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle gradient overlay
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "rgba(255,107,43,0.05)");
+      grad.addColorStop(1, "rgba(26,26,46,0.3)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
 
       // Left accent bar
-      ctx.fillStyle = "#FF6B2B";
-      ctx.fillRect(0, 0, 8, 500);
+      const barGrad = ctx.createLinearGradient(0, 0, 0, H);
+      barGrad.addColorStop(0, "#FF6B2B");
+      barGrad.addColorStop(1, "#cc4a15");
+      ctx.fillStyle = barGrad;
+      ctx.fillRect(0, 0, 6, H);
 
       // Header band
-      ctx.fillStyle = "#111111";
-      ctx.fillRect(8, 0, 892, 90);
+      ctx.fillStyle = "rgba(17,17,17,0.95)";
+      ctx.fillRect(6, 0, W - 6, 80);
 
-      // FLINT
+      // FLINT wordmark
       ctx.fillStyle = "#FF6B2B";
-      ctx.font = "bold 36px Arial, sans-serif";
-      ctx.fillText("FLINT", 40, 48);
+      ctx.font = "bold 32px Arial, sans-serif";
+      ctx.fillText("FLINT", 40, 45);
+      ctx.fillStyle = "#555555";
+      ctx.font = "10px Arial, sans-serif";
+      ctx.fillText("PAYMENT RECEIPT", 40, 65);
 
-      // Receipt label
-      ctx.fillStyle = "#888888";
-      ctx.font = "12px Arial, sans-serif";
-      ctx.letterSpacing = "3px";
-      ctx.fillText("PAYMENT RECEIPT", 40, 72);
-
-      // Verified circle
+      // Paid badge (top-right)
       ctx.fillStyle = "#4ade80";
       ctx.beginPath();
-      ctx.arc(840, 45, 28, 0, Math.PI * 2);
+      ctx.roundRect(W - 130, 20, 100, 36, 8);
       ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 22px Arial, sans-serif";
+      ctx.fillStyle = "#0d0d0d";
+      ctx.font = "bold 13px Arial, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("✓", 840, 53);
+      ctx.fillText("✓  PAID", W - 80, 43);
       ctx.textAlign = "left";
 
       // Divider
-      ctx.fillStyle = "#222222";
-      ctx.fillRect(40, 100, 820, 1);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(40, 90, W - 80, 1);
 
       // Invoice title
-      ctx.fillStyle = "#f7f7f5";
-      ctx.font = "bold 26px Arial, sans-serif";
-      ctx.fillText(invoice.title.slice(0, 40), 40, 145);
+      ctx.fillStyle = "#999999";
+      ctx.font = "10px Arial, sans-serif";
+      ctx.fillText("INVOICE", 40, 120);
+      ctx.fillStyle = "#f0f0ee";
+      ctx.font = "bold 22px Arial, sans-serif";
+      ctx.fillText(invoice.title.slice(0, 48), 40, 148);
 
-      // Amount
+      // Amount — big
       ctx.fillStyle = "#FF6B2B";
-      ctx.font = "bold 52px Arial, sans-serif";
-      const amtText = `${invoice.amount}`;
-      ctx.fillText(amtText, 40, 220);
-      ctx.fillStyle = "#888888";
-      ctx.font = "24px Arial, sans-serif";
-      ctx.fillText(` ${invoice.token}`, 40 + ctx.measureText(amtText).width, 220);
+      ctx.font = "bold 58px Arial, sans-serif";
+      const amtW = ctx.measureText(`${invoice.amount}`).width;
+      ctx.fillText(`${invoice.amount}`, 40, 230);
+      ctx.fillStyle = "#666666";
+      ctx.font = "28px Arial, sans-serif";
+      ctx.fillText(` ${invoice.token}`, 40 + amtW, 230);
 
-      // Details row
-      const detailY = 265;
+      // Detail columns
+      const detailY = 270;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(40, detailY - 10, W - 80, 1);
+
+      const cols = [
+        { label: "DATE", value: invoice.paidAt ? formatDate(invoice.paidAt) : "—", x: 40 },
+        { label: "STATUS", value: "Paid", x: 240, green: true },
+        { label: "NETWORK", value: "Solana Devnet", x: 440 },
+        { label: "RECIPIENT", value: `${invoice.recipientWallet.slice(0, 8)}...${invoice.recipientWallet.slice(-6)}`, x: 660 },
+      ];
+
+      cols.forEach(({ label, value, x, green }) => {
+        ctx.fillStyle = "#555555";
+        ctx.font = "9px Arial, sans-serif";
+        ctx.fillText(label, x, detailY + 14);
+        ctx.fillStyle = green ? "#4ade80" : "#e0e0de";
+        ctx.font = "bold 13px Arial, sans-serif";
+        ctx.fillText(value, x, detailY + 34);
+      });
+
+      // Second divider
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(40, detailY + 52, W - 80, 1);
+
+      // TX signature
       ctx.fillStyle = "#555555";
-      ctx.font = "11px Arial, sans-serif";
-      ctx.fillText("DATE", 40, detailY);
-      ctx.fillText("STATUS", 260, detailY);
-      ctx.fillText("NETWORK", 480, detailY);
-
-      ctx.fillStyle = "#f7f7f5";
-      ctx.font = "bold 14px Arial, sans-serif";
-      ctx.fillText(invoice.paidAt ? formatDate(invoice.paidAt) : "—", 40, detailY + 20);
-      ctx.fillStyle = "#4ade80";
-      ctx.fillText("Paid", 260, detailY + 20);
-      ctx.fillStyle = "#f7f7f5";
-      ctx.fillText("Solana Devnet", 480, detailY + 20);
-
-      // Divider
-      ctx.fillStyle = "#222222";
-      ctx.fillRect(40, 305, 820, 1);
-
-      // Transaction
-      ctx.fillStyle = "#555555";
-      ctx.font = "11px Arial, sans-serif";
-      ctx.fillText("TRANSACTION SIGNATURE", 40, 330);
+      ctx.font = "9px Arial, sans-serif";
+      ctx.fillText("TRANSACTION SIGNATURE", 40, detailY + 74);
       ctx.fillStyle = "#FF6B2B";
       ctx.font = "11px monospace";
-      ctx.fillText(shortTx, 40, 350);
+      ctx.fillText(shortTx, 40, detailY + 94);
 
-      // Verify
+      // Verify link
       ctx.fillStyle = "#555555";
-      ctx.font = "11px Arial, sans-serif";
-      ctx.fillText("VERIFY AT", 40, 385);
+      ctx.font = "9px Arial, sans-serif";
+      ctx.fillText("VERIFY ONLINE", 40, detailY + 122);
       ctx.fillStyle = "#4ade80";
       ctx.font = "11px monospace";
-      const shortVerify = `flint-rust.vercel.app/verify/${invoice.txSignature?.slice(0, 16)}...`;
-      ctx.fillText(shortVerify, 40, 405);
+      ctx.fillText(verifyUrl.slice(0, 80), 40, detailY + 142);
 
-      // Footer
-      ctx.fillStyle = "#111111";
-      ctx.fillRect(8, 455, 892, 45);
-      ctx.fillStyle = "#444444";
-      ctx.font = "11px Arial, sans-serif";
-      ctx.fillText("Generated by Flint  ·  flint-rust.vercel.app  ·  Secured by Solana Blockchain", 40, 480);
+      // Footer band
+      ctx.fillStyle = "rgba(17,17,17,0.95)";
+      ctx.fillRect(6, H - 46, W - 6, 46);
+      ctx.fillStyle = "#333333";
+      ctx.font = "10px Arial, sans-serif";
+      ctx.fillText("Generated by Flint  ·  Secured by Solana Blockchain  ·  flint.pay", 40, H - 18);
 
       const link = document.createElement("a");
       link.download = `flint-receipt-${id.slice(0, 8)}.png`;
@@ -222,114 +234,121 @@ export default function InvoicePage() {
     } else {
       const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF({ format: "a4" });
-      const w = 210;
+      const W = 210, H = 297;
 
       // Background
-      doc.setFillColor(15, 15, 15);
-      doc.rect(0, 0, w, 297, "F");
+      doc.setFillColor(13, 13, 13);
+      doc.rect(0, 0, W, H, "F");
 
-      // Left accent bar
+      // Accent gradient bar (left)
       doc.setFillColor(255, 107, 43);
-      doc.rect(0, 0, 4, 297, "F");
+      doc.rect(0, 0, 5, H, "F");
 
-      // Header background
-      doc.setFillColor(17, 17, 17);
-      doc.rect(4, 0, w - 4, 40, "F");
+      // Header band
+      doc.setFillColor(20, 20, 20);
+      doc.rect(5, 0, W - 5, 44, "F");
 
-      // FLINT
+      // FLINT wordmark
       doc.setTextColor(255, 107, 43);
-      doc.setFontSize(22);
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text("FLINT", 15, 22);
-
-      // Receipt label
-      doc.setTextColor(136, 136, 136);
-      doc.setFontSize(9);
+      doc.text("FLINT", 16, 22);
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
-      doc.text("PAYMENT RECEIPT", 15, 33);
+      doc.text("PAYMENT RECEIPT", 16, 32);
 
-      // Verified badge
+      // Paid badge
       doc.setFillColor(74, 222, 128);
-      doc.circle(195, 20, 8, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
+      doc.roundedRect(W - 42, 10, 34, 13, 2, 2, "F");
+      doc.setTextColor(13, 13, 13);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
-      doc.text("✓", 192.5, 23.5);
+      doc.text("✓  PAID", W - 37, 18.5);
 
       // Divider
-      doc.setDrawColor(31, 31, 31);
+      doc.setDrawColor(38, 38, 38);
       doc.setLineWidth(0.3);
-      doc.line(15, 45, w - 15, 45);
+      doc.line(16, 49, W - 16, 49);
 
       // Invoice title
-      doc.setTextColor(247, 247, 245);
-      doc.setFontSize(16);
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text("INVOICE", 16, 60);
+      doc.setTextColor(240, 240, 238);
+      doc.setFontSize(15);
       doc.setFont("helvetica", "bold");
-      doc.text(invoice.title, 15, 60);
+      doc.text(invoice.title.slice(0, 60), 16, 72);
 
       // Amount
       doc.setTextColor(255, 107, 43);
-      doc.setFontSize(32);
-      doc.text(`${invoice.amount} ${invoice.token}`, 15, 85);
+      doc.setFontSize(28);
+      doc.text(`${invoice.amount} ${invoice.token}`, 16, 94);
 
-      // Divider
-      doc.line(15, 95, w - 15, 95);
+      doc.setDrawColor(38, 38, 38);
+      doc.line(16, 102, W - 16, 102);
 
-      // Details grid
-      const details = [
+      // Detail rows
+      const detailItems: [string, string, boolean?][] = [
         ["Date", invoice.paidAt ? formatDate(invoice.paidAt) : "—"],
-        ["Status", "Paid"],
+        ["Status", "Paid", true],
         ["Network", "Solana Devnet"],
         ["Recipient", `${invoice.recipientWallet.slice(0, 16)}...${invoice.recipientWallet.slice(-8)}`],
         ["Payer", invoice.payerWallet ? `${invoice.payerWallet.slice(0, 16)}...${invoice.payerWallet.slice(-8)}` : "—"],
       ];
-      if (invoice.memo) details.push(["Memo", invoice.memo]);
+      if (invoice.memo) detailItems.push(["Memo", invoice.memo]);
 
-      let y = 110;
-      details.forEach(([label, value]) => {
+      let y = 116;
+      detailItems.forEach(([label, value, green]) => {
         doc.setTextColor(85, 85, 85);
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "normal");
-        doc.text(label.toUpperCase(), 15, y);
-        doc.setTextColor(value === "Paid" ? 74 : 247, value === "Paid" ? 222 : 247, value === "Paid" ? 128 : 245);
+        doc.text(label.toUpperCase(), 16, y);
+        if (green) {
+          doc.setTextColor(74, 222, 128);
+        } else {
+          doc.setTextColor(220, 220, 218);
+        }
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.text(value, 15, y + 8);
-        y += 22;
+        doc.text(value, 16, y + 8);
+        y += 20;
       });
 
-      // Transaction section
-      doc.line(15, y + 5, w - 15, y + 5);
-      y += 15;
-      doc.setTextColor(85, 85, 85);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text("TRANSACTION SIGNATURE", 15, y);
-      doc.setTextColor(255, 107, 43);
-      doc.setFontSize(7);
-      doc.setFont("courier", "normal");
-      const txLines = doc.splitTextToSize(invoice.txSignature || "", w - 30);
-      doc.text(txLines, 15, y + 8);
-      y += 8 + (txLines.length * 5) + 10;
+      doc.setDrawColor(38, 38, 38);
+      doc.line(16, y + 4, W - 16, y + 4);
+      y += 14;
 
-      // Verify section
+      // TX signature
       doc.setTextColor(85, 85, 85);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
-      doc.text("VERIFY ONLINE", 15, y);
+      doc.text("TRANSACTION SIGNATURE", 16, y);
+      doc.setTextColor(255, 107, 43);
+      doc.setFontSize(6.5);
+      doc.setFont("courier", "normal");
+      const txLines = doc.splitTextToSize(invoice.txSignature || "—", W - 32);
+      doc.text(txLines, 16, y + 8);
+      y += 8 + txLines.length * 5 + 10;
+
+      // Verify link
+      doc.setTextColor(85, 85, 85);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text("VERIFY ONLINE", 16, y);
       doc.setTextColor(74, 222, 128);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      const verifyLines = doc.splitTextToSize(verifyUrl, w - 30);
-      doc.text(verifyLines, 15, y + 8);
+      doc.setFontSize(7);
+      const verifyLines = doc.splitTextToSize(verifyUrl, W - 32);
+      doc.text(verifyLines, 16, y + 8);
 
       // Footer
-      doc.setFillColor(17, 17, 17);
-      doc.rect(4, 275, w - 4, 22, "F");
-      doc.setTextColor(51, 51, 51);
-      doc.setFontSize(7);
+      doc.setFillColor(20, 20, 20);
+      doc.rect(5, H - 22, W - 5, 22, "F");
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(6.5);
       doc.setFont("helvetica", "normal");
-      doc.text("Generated by Flint · flint-rust.vercel.app · Secured by Solana Blockchain", 15, 287);
+      doc.text("Generated by Flint  ·  Secured by Solana Blockchain  ·  flint.pay", 16, H - 9);
 
       doc.save(`flint-receipt-${id.slice(0, 8)}.pdf`);
     }
@@ -338,19 +357,18 @@ export default function InvoicePage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p style={{ color: "#888888" }}>Loading invoice...</p>
+        <FlintLoader message="Loading invoice..." />
       </main>
     );
   }
 
   if (!invoice) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
+      <main className="min-h-screen flex items-center justify-center px-6">
         <div className="text-center">
-          <p className="text-xl mb-2" style={{ color: "var(--chalk)" }}>Invoice not found</p>
-          <button onClick={() => router.push("/")}
-            style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>
-            Back to Flint
+          <p className="text-xl mb-4" style={{ color: "var(--chalk)" }}>Invoice not found</p>
+          <button onClick={() => router.push("/")} className="back-btn mx-auto">
+            <ChevronLeft /><span>Back to Flint</span>
           </button>
         </div>
       </main>
@@ -360,35 +378,30 @@ export default function InvoicePage() {
   const isPaid = invoice.status === "paid";
 
   return (
-    <main className="min-h-screen px-6 py-12">
+    <main className="min-h-screen px-5 sm:px-8 py-10 sm:py-14">
       <div className="max-w-lg mx-auto">
 
-        <button onClick={() => router.push("/")}
-          style={{ color: "var(--spark)", fontSize: "14px", background: "none", border: "none", cursor: "pointer" }}>
-          Back to Flint
+        <button onClick={() => router.push("/")} className="back-btn mb-7">
+          <ChevronLeft /><span>Flint</span>
         </button>
 
         {/* Status banner */}
         <div
-          className="glass-light mt-6 mb-8 px-6 py-4 rounded-2xl flex items-center gap-4"
-          style={{
-            border: isPaid ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.06)",
-          }}
+          className="glass-light mt-2 mb-7 px-5 py-4 rounded-2xl flex items-center gap-4"
+          style={{ border: isPaid ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.06)" }}
         >
           <div style={isPaid ? {
-            width: "40px", height: "40px", borderRadius: "50%",
+            width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
             background: "#4ade80", display: "flex", alignItems: "center",
-            justifyContent: "center", color: "white", fontSize: "18px",
-            fontWeight: 700, flexShrink: 0,
+            justifyContent: "center", color: "white", fontSize: "20px", fontWeight: 700,
           } : {
-            width: "40px", height: "40px", borderRadius: "50%",
-            background: "#1a1a0a", border: "1px solid #2a2a0a",
+            width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
+            background: "rgba(255,107,43,0.1)", border: "1px solid rgba(255,107,43,0.2)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--spark)", fontSize: "18px", flexShrink: 0,
+            color: "var(--spark)", fontSize: "20px",
           }}>
             {isPaid ? "✓" : "·"}
           </div>
-
           <div>
             <p className="font-medium" style={{ color: isPaid ? "#4ade80" : "var(--chalk)" }}>
               {isPaid ? "Payment received" : "Payment request created"}
@@ -400,15 +413,15 @@ export default function InvoicePage() {
         </div>
 
         {/* Invoice card */}
-        <div className="glass-medium rounded-2xl p-8 mb-6">
+        <div className="glass-medium rounded-2xl p-6 sm:p-8 mb-6">
           <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-xs mb-1" style={{ color: "#555555" }}>INVOICE</p>
+            <div className="flex-1 min-w-0 pr-4">
+              <p className="text-xs mb-1" style={{ color: "#555555", letterSpacing: "0.1em" }}>INVOICE</p>
               <h1 className="text-2xl font-medium" style={{ color: "var(--chalk)" }}>
                 {invoice.title}
               </h1>
             </div>
-            <div className="text-right">
+            <div className="text-right flex-shrink-0">
               <p className="text-3xl font-medium" style={{ color: "var(--spark)" }}>
                 {invoice.amount}
               </p>
@@ -416,18 +429,18 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "20px" }}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "20px" }}
             className="flex flex-col gap-3">
             {invoice.memo && (
-              <div className="flex justify-between">
-                <p className="text-sm" style={{ color: "#555555" }}>Memo</p>
-                <p className="text-sm" style={{ color: "var(--chalk)" }}>{invoice.memo}</p>
+              <div className="flex justify-between gap-4">
+                <p className="text-sm flex-shrink-0" style={{ color: "#555555" }}>Memo</p>
+                <p className="text-sm text-right" style={{ color: "var(--chalk)" }}>{invoice.memo}</p>
               </div>
             )}
             {invoice.condition && (
-              <div className="flex justify-between">
-                <p className="text-sm" style={{ color: "#555555" }}>Condition</p>
-                <p className="text-sm" style={{ color: "#FFB800" }}>{invoice.condition}</p>
+              <div className="flex justify-between gap-4">
+                <p className="text-sm flex-shrink-0" style={{ color: "#555555" }}>Condition</p>
+                <p className="text-sm text-right" style={{ color: "#FFB800" }}>{invoice.condition}</p>
               </div>
             )}
             <div className="flex justify-between">
@@ -447,7 +460,7 @@ export default function InvoicePage() {
               </p>
             </div>
             {isPaid && invoice.txSignature && (
-              <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
                 <p className="text-xs mb-1" style={{ color: "#555555" }}>Transaction</p>
                 <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>
                   {invoice.txSignature}
@@ -457,13 +470,13 @@ export default function InvoicePage() {
           </div>
         </div>
 
-        {/* Primary action — paid vs unpaid */}
+        {/* Actions — paid */}
         {isPaid ? (
           <div className="flex flex-col gap-3 mb-6">
             <button
               onClick={() => window.open(`/verify/${invoice.txSignature}`, "_blank")}
-              className="w-full py-4 rounded-2xl font-medium text-white transition-all hover:opacity-90"
-              style={{ background: "#4ade80", color: "#0f0f0f" }}
+              className="w-full py-4 rounded-2xl font-medium transition-all hover:opacity-90"
+              style={{ background: "#4ade80", color: "#0f0f0f", minHeight: "54px" }}
             >
               View Verified Receipt
             </button>
@@ -471,14 +484,14 @@ export default function InvoicePage() {
               <button
                 onClick={() => downloadReceipt("pdf")}
                 className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-                style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+                style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888", minHeight: "48px" }}
               >
                 Download PDF
               </button>
               <button
                 onClick={() => downloadReceipt("image")}
                 className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-                style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+                style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888", minHeight: "48px" }}
               >
                 Download Image
               </button>
@@ -486,11 +499,11 @@ export default function InvoicePage() {
             <div className="flex gap-3">
               <button
                 onClick={() => window.open(
-                  `https://wa.me/?text=Payment confirmed! ${invoice.amount} ${invoice.token} for "${invoice.title}". Verify: ${window.location.origin}/verify/${invoice.txSignature}`,
+                  `https://wa.me/?text=${encodeURIComponent(`Payment confirmed! ${invoice.amount} ${invoice.token} for "${invoice.title}". Verify: ${window.location.origin}/verify/${invoice.txSignature}`)}`,
                   "_blank"
                 )}
                 className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-                style={{ background: "#0a1f0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+                style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", minHeight: "48px" }}
               >
                 Share via WhatsApp
               </button>
@@ -501,7 +514,7 @@ export default function InvoicePage() {
                   setTimeout(() => setCopied(false), 2000);
                 }}
                 className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-                style={{ background: "#111111", border: "1px solid #1f1f1f", color: copied ? "#4ade80" : "#888888" }}
+                style={{ background: "#111111", border: "1px solid #1f1f1f", color: copied ? "#4ade80" : "#888888", minHeight: "48px" }}
               >
                 {copied ? "Copied!" : "Copy Verify Link"}
               </button>
@@ -510,63 +523,121 @@ export default function InvoicePage() {
         ) : (
           <>
             {/* Payment link */}
-            <div className="glass-card rounded-2xl p-6 mb-6">
+            <div className="glass-card rounded-2xl p-6 mb-5">
               <p className="text-xs mb-3"
                 style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Payment Link
               </p>
-              <div className="glass-light flex items-center gap-3 px-4 py-3 rounded-xl mb-4">
+              <div className="glass-light flex items-center gap-3 px-4 py-3 rounded-xl mb-4 overflow-hidden">
                 <p className="text-sm font-mono flex-1 truncate" style={{ color: "var(--spark)" }}>
                   {paymentLink}
                 </p>
               </div>
               <button
                 onClick={handleCopy}
-                className="w-full py-3 rounded-xl font-medium text-white transition-all hover:opacity-90 mb-3"
-                style={{ background: copied ? "#0a1a0a" : "var(--spark)", color: copied ? "#4ade80" : "white" }}
+                className="w-full py-3 rounded-xl font-medium transition-all hover:opacity-90 mb-4 liquid-btn"
+                style={copied ? { background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80" } : {}}
               >
                 {copied ? "Link Copied!" : "Copy Payment Link"}
               </button>
-              <div className="flex gap-3">
+
+              {/* Share row */}
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => window.open(
-                    `https://wa.me/?text=Hi! I sent you a payment request for ${invoice.amount} ${invoice.token}. Pay here: ${paymentLink}`,
+                    `https://wa.me/?text=${encodeURIComponent(`Hi! I sent you a payment request for ${invoice.amount} ${invoice.token}. Pay here: ${paymentLink}`)}`,
                     "_blank"
                   )}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-                  style={{ background: "#0a1f0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+                  className="py-3 rounded-xl text-xs font-medium transition-all hover:opacity-90 flex flex-col items-center gap-1"
+                  style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.18)", color: "#4ade80", minHeight: "56px" }}
                 >
-                  Share on WhatsApp
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.556 4.121 1.527 5.85L0 24l6.336-1.489A11.93 11.93 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 0 1-5.002-1.37l-.358-.214-3.763.884.897-3.665-.233-.375A9.77 9.77 0 0 1 2.182 12c0-5.416 4.402-9.818 9.818-9.818 5.416 0 9.818 4.402 9.818 9.818 0 5.416-4.402 9.818-9.818 9.818z"/></svg>
+                  <span>WhatsApp</span>
                 </button>
                 <button
                   onClick={() => window.open(
-                    `mailto:?subject=Payment Request: ${invoice.title}&body=Hi! Please pay ${invoice.amount} ${invoice.token} for "${invoice.title}".%0A%0APay here: ${paymentLink}`,
+                    `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Pay me ${invoice.amount} ${invoice.token} for "${invoice.title}": ${paymentLink}`)}`,
                     "_blank"
                   )}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-                  style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#888888" }}
+                  className="py-3 rounded-xl text-xs font-medium transition-all hover:opacity-90 flex flex-col items-center gap-1"
+                  style={{ background: "rgba(136,136,255,0.08)", border: "1px solid rgba(136,136,255,0.18)", color: "#8888ff", minHeight: "56px" }}
                 >
-                  Send via Email
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.261 5.635 5.904-5.635Zm-1.161 17.52h1.833L7.084 4.126H5.117Z"/></svg>
+                  <span>Post on X</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = `mailto:?subject=${encodeURIComponent(`Payment Request: ${invoice.title}`)}&body=${encodeURIComponent(`Hi!\n\nPlease pay ${invoice.amount} ${invoice.token} for "${invoice.title}".\n\nPay here: ${paymentLink}\n\nThis link expires in a few days. You only need a Solana wallet to pay.`)}`;
+                  }}
+                  className="py-3 rounded-xl text-xs font-medium transition-all hover:opacity-90 flex flex-col items-center gap-1"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#888888", minHeight: "56px" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  <span>Email</span>
                 </button>
               </div>
             </div>
 
-            {/* QR Code */}
-            <div className="glass-card rounded-2xl p-6 mb-6 flex flex-col items-center gap-4">
+            {/* QR Code — dual color: orange left half, dark right half */}
+            <div className="glass-card rounded-2xl p-6 mb-5 flex flex-col items-center gap-4">
               <p className="text-xs"
                 style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Scan to Pay
               </p>
-              <div className="p-4 rounded-xl" style={{ background: "white" }}>
+              <div style={{
+                background: "white",
+                borderRadius: "20px",
+                padding: "20px",
+                position: "relative",
+                display: "inline-block",
+                boxShadow: "0 6px 32px rgba(255,107,43,0.2), 0 2px 8px rgba(0,0,0,0.3)",
+                lineHeight: 0,
+              }}>
+                {/* Base layer: orange */}
                 <QRCode
-                value={paymentLink}
-                size={160}
-                bgColor="#ffffff"
-                fgColor="#0f0f0f"
-              />
+                  value={qrValue}
+                  size={180}
+                  bgColor="#ffffff"
+                  fgColor="#FF6B2B"
+                  level="H"
+                />
+                {/* Top layer: dark, clipped to right half — creates the black+orange mix */}
+                <div style={{
+                  position: "absolute",
+                  inset: "20px",
+                  clipPath: "polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)",
+                  lineHeight: 0,
+                }}>
+                  <QRCode
+                    value={qrValue}
+                    size={180}
+                    bgColor="#ffffff"
+                    fgColor="#0f0f0f"
+                    level="H"
+                  />
+                </div>
+                {/* Flint logo centred — white halo keeps it readable */}
+                <div style={{
+                  position: "absolute",
+                  top: "50%", left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background: "white",
+                  borderRadius: "10px",
+                  padding: "6px",
+                  lineHeight: 0,
+                  boxShadow: "0 0 0 4px white",
+                }}>
+                  <img
+                    src="/flint-icon-32.png"
+                    width="28"
+                    height="28"
+                    alt="Flint"
+                    style={{ borderRadius: "5px", display: "block" }}
+                  />
+                </div>
               </div>
-              <p className="text-xs text-center" style={{ color: "#444444" }}>
-                Scan with Phantom mobile to pay instantly
+              <p className="text-xs text-center" style={{ color: "#555555" }}>
+                Scan with Phantom or any Solana wallet
               </p>
             </div>
           </>
@@ -574,140 +645,70 @@ export default function InvoicePage() {
 
         {/* Escrow release */}
         {invoice.escrowAddress && invoice.status !== "paid" && (
-          <div className="rounded-2xl p-6 mb-4"
+          <div className="rounded-2xl p-6 mb-5"
             style={{ background: "#1a1500", border: "1px solid #3a3000" }}>
             <p className="text-xs mb-2 font-medium" style={{ color: "#FFB800" }}>FUNDS IN ESCROW</p>
-            <p className="text-xs font-mono mb-4" style={{ color: "#888888" }}>
+            <p className="text-xs font-mono mb-3" style={{ color: "#888888" }}>
               {invoice.escrowAddress.slice(0, 8)}...{invoice.escrowAddress.slice(-8)}
             </p>
-            <p className="text-xs mb-4" style={{ color: "#888888" }}>
+            <p className="text-xs mb-5" style={{ color: "#888888" }}>
               Condition: {invoice.condition || "none"}
             </p>
             <button
               onClick={async () => {
-                if (!window.solana) return;
                 setReleasingEscrow(true);
                 try {
-                  await window.solana.connect();
+                  const { getSolanaProvider } = await import("@/lib/wallet");
+                  const provider = getSolanaProvider();
+                  if (!provider) return;
+                  await provider.connect();
                   const res = await fetch("/api/escrow", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      invoiceId: id,
-                      payerAddress: window.solana.publicKey.toString(),
-                      action: "release",
-                    }),
+                    body: JSON.stringify({ invoiceId: id, payerAddress: provider.publicKey?.toString(), action: "release" }),
                   });
                   const data = await res.json();
                   if (data.transaction) {
                     const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
                     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
                     const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
-                    const { signature } = await window.solana.signAndSendTransaction(tx);
+                    const signedTx = await provider.signTransaction(tx);
+                    const signature = await connection.sendRawTransaction(signedTx.serialize());
                     try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
                     window.location.reload();
                   }
-                } catch (err) { console.error(err); }
-                finally { setReleasingEscrow(false); }
+                } catch {
+                  // silent
+                } finally {
+                  setReleasingEscrow(false);
+                }
               }}
               disabled={releasingEscrow}
               className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: "#FFB800", color: "#0f0f0f" }}
+              style={{ background: "#2a2500", border: "1px solid #4a4000", color: "#FFB800", minHeight: "48px" }}
             >
               {releasingEscrow ? "Releasing..." : "Release Escrow to Recipient"}
             </button>
           </div>
         )}
 
-        {/* Webhook test */}
-        {invoice.webhookUrl && (
-          <div className="glass-card rounded-2xl p-6 mb-4">
-            <p className="text-xs mb-2"
-              style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Webhook
-            </p>
-            <p className="text-xs font-mono mb-4" style={{ color: "#888888" }}>{invoice.webhookUrl}</p>
-            <button
-              onClick={async () => {
-                setTestingWebhook(true);
-                setWebhookResult("");
-                try {
-                  const res = await fetch(invoice.webhookUrl!, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "X-Flint-Event": "test" },
-                    body: JSON.stringify({ event: "test", invoiceId: id, timestamp: Date.now() }),
-                  });
-                  setWebhookResult(res.ok ? "Webhook delivered successfully" : `Failed: ${res.status}`);
-                } catch {
-                  setWebhookResult("Webhook delivery failed — check URL");
-                } finally { setTestingWebhook(false); }
-              }}
-              disabled={testingWebhook}
-              className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: "#111111", border: "1px solid #2a2a2a", color: "#888888" }}
-            >
-              {testingWebhook ? "Testing..." : "Test Webhook"}
-            </button>
-            {webhookResult && (
-              <p className="text-xs mt-2 text-center"
-                style={{ color: webhookResult.includes("success") ? "#4ade80" : "#ff6b6b" }}>
-                {webhookResult}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Export */}
-        {!isPaid && (
-          <div className="flex gap-3 mb-4">
-            <button
-              onClick={() => window.open(`/api/ubl?id=${id}`, "_blank")}
-              className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#555555" }}
-            >
-              Export UBL XML
-            </button>
-            <button
-              onClick={() => window.open(`/api/receipt/${id}`, "_blank")}
-              className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: "#111111", border: "1px solid #1f1f1f", color: "#555555" }}
-            >
-              View Receipt JSON
-            </button>
-          </div>
-        )}
-
         {/* Audit log */}
         {auditLog.length > 0 && (
-          <div className="rounded-2xl p-6 mb-4"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
-            <p className="text-xs mb-4"
-              style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <div className="glass-card rounded-2xl p-5 mb-5">
+            <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
               Activity Log
             </p>
             <div className="flex flex-col gap-3">
               {auditLog.map((entry) => (
                 <div key={entry.id} className="flex items-start gap-3">
-                  <div className="verified-badge flex-shrink-0 glass-light" style={{
-                    width: "20px", height: "20px", fontSize: "10px",
-                    background: entry.action === "paid" ? "#4ade80" : entry.action.includes("reject") ? "#ff6b6b" : "var(--spark)",
-                  }}>
-                    ✓
-                  </div>
+                  <div style={{
+                    width: "6px", height: "6px", borderRadius: "50%",
+                    background: "var(--spark)", marginTop: "5px", flexShrink: 0,
+                  }} />
                   <div>
-                    <p className="text-xs font-medium" style={{ color: "var(--chalk)" }}>
-                      {entry.action === "created" ? "Invoice created"
-                        : entry.action === "paid" ? "Payment received"
-                        : entry.action === "escrowed" ? "Funds held in escrow"
-                        : entry.action === "released" ? "Escrow released"
-                        : entry.action === "agent_approved" ? "Agent approved"
-                        : entry.action === "agent_rejected" ? "Agent rejected"
-                        : entry.action}
-                    </p>
+                    <p className="text-sm" style={{ color: "var(--chalk)" }}>{entry.action}</p>
                     <p className="text-xs" style={{ color: "#555555" }}>{entry.details}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "#333333" }}>
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </p>
+                    <p className="text-xs mt-1" style={{ color: "#333333" }}>{formatDate(entry.timestamp)}</p>
                   </div>
                 </div>
               ))}

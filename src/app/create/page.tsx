@@ -2,6 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import FlintLoader from "@/components/flint-loader";
+
+const ChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
 
 function CreatePageInner() {
   const router = useRouter();
@@ -38,16 +45,6 @@ function CreatePageInner() {
     if (e) setExpiryDays(e);
   }, [searchParams]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        handleSubmit();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [title, amount, recipientWallet, token, memo, expiryDays, handle, condition, webhookUrl]);
-
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Please add a title."); return; }
     if (!amount || Number(amount) <= 0) { setError("Please enter a valid amount."); return; }
@@ -81,43 +78,39 @@ function CreatePageInner() {
     }
   };
 
-  const inputStyle = {
-    background: "rgba(15, 15, 15, 0.7)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    color: "var(--chalk)",
-  };
-
   const labelStyle = {
     color: "#aaaaaa",
     fontSize: "11px",
     fontWeight: 500,
     letterSpacing: "0.1em",
     textTransform: "uppercase" as const,
-    marginBottom: "6px",
+    marginBottom: "8px",
     display: "block",
   };
 
+  const tokens = [
+    { id: "USDC", label: "USDC", icon: "◎", desc: "USD Coin" },
+    { id: "SOL",  label: "SOL",  icon: "◉", desc: "Solana" },
+  ];
+
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-lg mx-auto mb-10">
-        <button
-          onClick={() => router.push("/")}
-          style={{ color: "var(--spark)", fontSize: "14px", background: "none", border: "none", cursor: "pointer" }}
-        >
-          Back to Flint
+    <main className="min-h-screen px-5 sm:px-8 py-10 sm:py-14">
+      <div className="max-w-lg mx-auto mb-8">
+        <button onClick={() => router.push("/")} className="back-btn mb-6">
+          <ChevronLeft />
+          <span>Flint</span>
         </button>
-        <h1 className="text-3xl font-medium tracking-wide mt-4 mb-2" style={{ color: "var(--chalk)" }}>
+        <h1 className="text-3xl font-medium tracking-wide mt-1 mb-2" style={{ color: "var(--chalk)" }}>
           New Payment Request
         </h1>
         <p style={{ color: "#888888", fontSize: "14px" }}>
-          Fill in the details. We will generate a shareable link instantly.
+          Fill in the details. We&apos;ll generate a shareable link instantly.
         </p>
       </div>
 
-      <div className="max-w-lg mx-auto rounded-2xl p-8 flex flex-col gap-6 glass-medium">
+      <div className="max-w-lg mx-auto rounded-2xl p-6 sm:p-8 flex flex-col gap-6 glass-medium">
 
+        {/* Title */}
         <div>
           <label style={labelStyle}>Invoice Title</label>
           <input
@@ -128,32 +121,44 @@ function CreatePageInner() {
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label style={labelStyle}>Amount</label>
-            <input
-              value={amount}
-              onChange={(e) => { setAmount(e.target.value); setError(""); }}
-              placeholder="0.00"
-              type="number"
-              min="0"
-              step="any"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
-            />
-          </div>
-          <div style={{ width: "110px" }}>
-            <label style={labelStyle}>Token</label>
-            <select
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
+        {/* Amount + Token */}
+        <div>
+          <label style={labelStyle}>Amount &amp; Token</label>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <input
+                value={amount}
+                onChange={(e) => { setAmount(e.target.value); setError(""); }}
+                placeholder="0.00"
+                type="number"
+                min="0"
+                step="any"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
+              />
+            </div>
+            <div
+              className="flex gap-2 p-1 rounded-xl"
+              style={{ background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.07)" }}
             >
-              <option value="SOL">SOL</option>
-              <option value="USDC">USDC</option>
-            </select>
+              {tokens.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setToken(t.id)}
+                  className={`token-pill ${token === t.id ? "token-pill-active" : "token-pill-inactive"}`}
+                  style={{ minWidth: "70px" }}
+                >
+                  <span style={{ fontSize: "15px" }}>{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
+            {token === "USDC" ? "USD Coin — stable, dollar-pegged" : "Native Solana token"}
+          </p>
         </div>
 
+        {/* Wallet */}
         <div>
           <label style={labelStyle}>Your Wallet Address</label>
           <input
@@ -162,13 +167,14 @@ function CreatePageInner() {
             placeholder="Your Solana wallet address"
             className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
           />
-          <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
             This is where you will receive the payment
           </p>
         </div>
 
+        {/* Memo */}
         <div>
-          <label style={labelStyle}>Memo (optional)</label>
+          <label style={labelStyle}>Memo <span style={{ color: "#444444", textTransform: "none", fontWeight: 400 }}>(optional)</span></label>
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
@@ -178,43 +184,57 @@ function CreatePageInner() {
           />
         </div>
 
+        {/* Expiry */}
         <div>
           <label style={labelStyle}>Link Expires In</label>
-          <select
-            value={expiryDays}
-            onChange={(e) => setExpiryDays(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
-          >
-            <option value="1">1 day</option>
-            <option value="3">3 days</option>
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-          </select>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { val: "1", label: "1 day" },
+              { val: "3", label: "3 days" },
+              { val: "7", label: "7 days" },
+              { val: "14", label: "14 days" },
+              { val: "30", label: "30 days" },
+            ].map((opt) => (
+              <button
+                key={opt.val}
+                onClick={() => setExpiryDays(opt.val)}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition-smooth"
+                style={{
+                  background: expiryDays === opt.val ? "rgba(255,107,43,0.15)" : "rgba(15,15,15,0.5)",
+                  border: expiryDays === opt.val ? "1px solid rgba(255,107,43,0.4)" : "1px solid rgba(255,255,255,0.07)",
+                  color: expiryDays === opt.val ? "var(--spark)" : "#666666",
+                  minHeight: "44px",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Advanced toggle */}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4 glass-light"
+          style={{ minHeight: "48px" }}
         >
-          <span>Advanced Options</span>
+          <span style={{ color: "var(--chalk)" }}>Advanced Options</span>
           <span style={{ fontSize: "12px", color: "var(--spark)" }}>
-            {showAdvanced ? "- Hide" : "+ Show"}
+            {showAdvanced ? "− Hide" : "+ Show"}
           </span>
         </button>
 
         {showAdvanced && (
           <>
+            {/* Handle */}
             <div>
               <label style={labelStyle}>
-                Flint Handle
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional)</span>
+                Flint Handle <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional)</span>
               </label>
               <div className="flex items-center rounded-xl overflow-hidden"
-                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}>
+                style={{ background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <span className="px-3 py-3 text-sm flex-shrink-0"
-                  style={{ color: "#555555", borderRight: "1px solid #2a2a2a" }}>
+                  style={{ color: "#555555", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
                   flint.pay/to/
                 </span>
                 <input
@@ -225,15 +245,15 @@ function CreatePageInner() {
                   style={{ background: "transparent", color: "var(--chalk)" }}
                 />
               </div>
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
                 Anyone can pay you at this permanent link
               </p>
             </div>
 
+            {/* Condition */}
             <div>
               <label style={labelStyle}>
-                Payment Condition
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional)</span>
+                Payment Condition <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional)</span>
               </label>
               <input
                 value={condition}
@@ -241,14 +261,15 @@ function CreatePageInner() {
                 placeholder="e.g. Deliver mockups before payment releases"
                 className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
               />
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
                 Condition the payer must meet before payment is valid
               </p>
             </div>
 
+            {/* Splits */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label style={labelStyle}>Split Payment</label>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Split Payment</label>
                 <button
                   onClick={() => {
                     setShowSplits(!showSplits);
@@ -259,7 +280,7 @@ function CreatePageInner() {
                   className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
                   style={{
                     background: showSplits ? "#1a1a0a" : "transparent",
-                    border: "1px solid #2a2a2a",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     color: showSplits ? "var(--spark)" : "#555555",
                   }}
                 >
@@ -279,7 +300,7 @@ function CreatePageInner() {
                         }}
                         placeholder="Label"
                         className="w-24 px-3 py-2 rounded-xl text-xs outline-none"
-                        style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--chalk)" }}
                       />
                       <input
                         value={split.wallet}
@@ -290,7 +311,7 @@ function CreatePageInner() {
                         }}
                         placeholder="Wallet address"
                         className="flex-1 px-3 py-2 rounded-xl text-xs outline-none font-mono"
-                        style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }}
+                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--chalk)" }}
                       />
                       <input
                         value={split.percentage}
@@ -303,24 +324,24 @@ function CreatePageInner() {
                         min="1"
                         max="100"
                         className="w-16 px-3 py-2 rounded-xl text-xs outline-none"
-                        style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--spark)" }}
+                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--spark)" }}
                       />
                       <span className="text-xs" style={{ color: "#555555" }}>%</span>
                       <button
                         onClick={() => setSplits(splits.filter((_, i) => i !== index))}
                         className="text-xs px-2 py-2 rounded-lg"
-                        style={{ background: "#1a0a0a", color: "#ff6b6b" }}
+                        style={{ background: "#1a0a0a", color: "#ff6b6b", minHeight: "36px", minWidth: "36px" }}
                       >
-                        x
+                        ✕
                       </button>
                     </div>
                   ))}
                   <button
                     onClick={() => setSplits([...splits, { wallet: "", percentage: 0, label: "" }])}
                     className="text-xs py-2 rounded-xl transition-all hover:opacity-80"
-                    style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "#888888" }}
+                    style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "#888888" }}
                   >
-                    Add recipient
+                    + Add recipient
                   </button>
                   <p className="text-xs" style={{ color: "#444444" }}>
                     Total: {splits.reduce((s, sp) => s + sp.percentage, 0)}% (must equal 100%)
@@ -329,15 +350,16 @@ function CreatePageInner() {
               )}
             </div>
 
+            {/* Recurring */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label style={labelStyle}>Recurring Payment</label>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Recurring Payment</label>
                 <button
                   onClick={() => setRecurring(!recurring)}
                   className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
                   style={{
                     background: recurring ? "#1a1a0a" : "transparent",
-                    border: "1px solid #2a2a2a",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     color: recurring ? "var(--spark)" : "#555555",
                   }}
                 >
@@ -374,15 +396,15 @@ function CreatePageInner() {
               )}
               {recurring && (
                 <p className="text-xs mt-2" style={{ color: "#444444" }}>
-                  Payer will be charged {recurringCount}x {recurringInterval}
+                  Payer will be charged {recurringCount}× {recurringInterval}
                 </p>
               )}
             </div>
 
+            {/* Webhook */}
             <div>
               <label style={labelStyle}>
-                Webhook URL
-                <span className="ml-2 normal-case" style={{ color: "#444444", fontSize: "11px" }}>(optional — for developers)</span>
+                Webhook URL <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional — for developers)</span>
               </label>
               <input
                 value={webhookUrl}
@@ -390,7 +412,7 @@ function CreatePageInner() {
                 placeholder="https://yourapp.com/webhooks/flint"
                 className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
               />
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
+              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
                 We POST to this URL when your invoice is paid
               </p>
             </div>
@@ -399,7 +421,7 @@ function CreatePageInner() {
 
         {error && (
           <p className="text-sm px-4 py-3 rounded-xl"
-            style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
+            style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
             {error}
           </p>
         )}
@@ -407,13 +429,14 @@ function CreatePageInner() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 liquid-btn"
+          className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 disabled:opacity-50 liquid-btn"
+          style={{ fontSize: "15px", minHeight: "54px" }}
         >
           {loading ? "Generating link..." : "Generate Payment Link"}
         </button>
 
         <p className="text-center text-xs" style={{ color: "#333333" }}>
-          The payer needs no account. Just a Solana wallet. · Press Ctrl+Enter to submit
+          The payer needs no account — just a Solana wallet.
         </p>
       </div>
     </main>
@@ -422,7 +445,11 @@ function CreatePageInner() {
 
 export default function CreatePage() {
   return (
-    <Suspense fallback={<div style={{ background: "#0f0f0f", minHeight: "100vh" }} />}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f0f0f" }}>
+        <FlintLoader message="Loading..." />
+      </div>
+    }>
       <CreatePageInner />
     </Suspense>
   );

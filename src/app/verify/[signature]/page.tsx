@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Logo from "@/components/logo";
+import FlintLoader from "@/components/flint-loader";
 
 interface ReceiptData {
   id: string;
@@ -52,14 +53,14 @@ export default function VerifyPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p style={{ color: "#888888" }}>Verifying payment...</p>
+        <FlintLoader message="Verifying payment..." />
       </main>
     );
   }
 
   if (notFound) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6">
+      <main className="min-h-screen flex items-center justify-center px-5 sm:px-6">
         <div className="text-center max-w-sm">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"
@@ -70,13 +71,12 @@ export default function VerifyPage() {
           <h1 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
             Receipt not found
           </h1>
-          <p className="text-sm mb-6" style={{ color: "#888888" }}>
+          <p className="text-sm mb-8" style={{ color: "#888888" }}>
             This transaction signature was not found in the Flint receipt registry.
           </p>
           <button
             onClick={() => router.push("/")}
-            className="px-6 py-3 rounded-xl text-white text-sm font-medium"
-            style={{ background: "var(--spark)" }}
+            className="px-6 py-3 rounded-xl text-white text-sm font-medium liquid-btn"
           >
             Back to Flint
           </button>
@@ -86,7 +86,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
       <div className="max-w-sm w-full">
 
         <div className="flex items-center justify-center mb-8">
@@ -95,8 +95,8 @@ export default function VerifyPage() {
 
         <div className="text-center mb-8">
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"
-            style={{ background: "#0a1a0a", border: "2px solid #4ade80" }}
+            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl animate-scale-in"
+            style={{ background: "rgba(74,222,128,0.1)", border: "2px solid #4ade80" }}
           >
             ✓
           </div>
@@ -108,9 +108,7 @@ export default function VerifyPage() {
           </p>
         </div>
 
-        <div
-          className="glass-medium rounded-2xl p-6 mb-4"
-        >
+        <div className="glass-medium rounded-2xl p-6 mb-5">
           <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Receipt Details
           </p>
@@ -157,7 +155,7 @@ export default function VerifyPage() {
               <p className="text-sm" style={{ color: "#555555" }}>Network</p>
               <p className="text-sm" style={{ color: "#4ade80" }}>Solana Devnet</p>
             </div>
-            <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
               <p className="text-xs mb-2" style={{ color: "#555555" }}>Transaction Signature</p>
               <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>
                 {receipt?.txSignature}
@@ -166,26 +164,37 @@ export default function VerifyPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => window.open(
-            `https://explorer.solana.com/tx/${receipt?.txSignature}?cluster=devnet`,
-            "_blank"
-          )}
-          className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 mb-3"
-          style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
-        >
-          View on Solana Explorer
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => window.open(
+              `https://explorer.solana.com/tx/${receipt?.txSignature}?cluster=devnet`,
+              "_blank"
+            )}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
+          >
+            View on Solana Explorer
+          </button>
+          <button
+            onClick={() => {
+              const msg = `Payment verified on Solana! ${receipt?.amount} ${receipt?.token} — check receipt: ${window.location.href}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}
+          >
+            Share Receipt
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#888888" }}
+          >
+            Back to Flint
+          </button>
+        </div>
 
-        <button
-          onClick={() => router.push("/")}
-          className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-          style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}
-        >
-          Back to Flint
-        </button>
-
-        <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
+        <p className="text-center text-xs mt-8" style={{ color: "#333333" }}>
           Powered by Flint · Verified on Solana
         </p>
       </div>

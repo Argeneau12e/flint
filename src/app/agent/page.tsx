@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getSolanaProvider, WALLET_NOT_FOUND_MSG } from "@/lib/wallet";
 
 interface Step {
   step: number;
@@ -62,9 +63,10 @@ export default function AgentPage() {
   const [paidIds, setPaidIds] = useState<string[]>([]);
 
   const connectWallet = async () => {
-    if (!window.solana) return "";
-    await window.solana.connect();
-    return window.solana.publicKey.toString();
+    const provider = getSolanaProvider();
+    if (!provider) return "";
+    await provider.connect();
+    return provider.publicKey?.toString() ?? "";
   };
 
   const runAgent = async () => {
@@ -80,7 +82,7 @@ export default function AgentPage() {
     try {
       const agentWallet = await connectWallet();
       if (!agentWallet) {
-        setError("Please install Phantom wallet.");
+        setError(WALLET_NOT_FOUND_MSG);
         return;
       }
 
@@ -151,13 +153,14 @@ export default function AgentPage() {
   };
 
   const executePayment = async (invId: string) => {
-    if (!window.solana) return;
+    const provider = getSolanaProvider();
+    if (!provider) return;
     setPayingIds((prev) => [...prev, invId]);
     try {
       const res = await fetch(`/api/pay/${invId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account: window.solana.publicKey.toString() }),
+        body: JSON.stringify({ account: provider.publicKey?.toString() }),
       });
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
@@ -165,7 +168,8 @@ export default function AgentPage() {
       const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
       const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
       const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
-      const { signature } = await window.solana.signAndSendTransaction(tx);
+      const signedTx = await provider.signTransaction(tx);
+      const signature = await connection.sendRawTransaction(signedTx.serialize());
 
       try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
 
@@ -174,7 +178,7 @@ export default function AgentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           txSignature: signature,
-          payerWallet: window.solana.publicKey.toString(),
+          payerWallet: provider.publicKey?.toString(),
         }),
       });
 
@@ -191,7 +195,9 @@ export default function AgentPage() {
   };
 
   const executeAllApproved = async () => {
-    if (!autonomousResult || !window.solana) return;
+    if (!autonomousResult) return;
+    const provider = getSolanaProvider();
+    if (!provider) return;
     setPaying(true);
     for (const item of autonomousResult.approved) {
       await executePayment(item.invoice.id);
@@ -214,22 +220,20 @@ export default function AgentPage() {
     "Execution ready",
   ];
 
-  const cardStyle = { background: "rgba(26,26,46,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 4px 24px rgba(0,0,0,0.3)" };
-  const cardClass = "glass-medium rounded-2xl";
   const labelStyle = { color: "#555555", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const };
 
   return (
-    <main className="min-h-screen px-6 py-12">
+    <main className="min-h-screen px-5 sm:px-6 py-10 sm:py-14">
       <div className="max-w-2xl mx-auto">
 
         <div className="mb-8">
           <button onClick={() => router.push("/")}
             style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>
-            Back to Flint
+            ← Back to Flint
           </button>
-          <div className="flex items-center gap-3 mt-4 mb-2">
+          <div className="flex items-center gap-3 mt-5 mb-2">
             <div className="px-3 py-1 rounded-full text-xs font-medium"
-              style={{ background: "#1a1a0a", color: "#FF6B2B", border: "1px solid #FF6B2B" }}>
+              style={{ background: "rgba(255,107,43,0.1)", color: "#FF6B2B", border: "1px solid rgba(255,107,43,0.3)" }}>
               EXPERIMENTAL
             </div>
           </div>
@@ -270,13 +274,11 @@ export default function AgentPage() {
           {mode === "single" ? (
             <input value={invoiceId} onChange={(e) => { setInvoiceId(e.target.value); setError(""); }}
               placeholder="Paste a Flint invoice ID"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono mb-4"
-              style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }} />
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono mb-4 liquid-input" />
           ) : (
             <input value={walletAddress} onChange={(e) => { setWalletAddress(e.target.value); setError(""); }}
               placeholder="Solana wallet address to scan for pending invoices"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono mb-4"
-              style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }} />
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono mb-4 liquid-input" />
           )}
 
           <div className="flex gap-3 mb-4">
@@ -284,21 +286,19 @@ export default function AgentPage() {
               <p style={labelStyle} className="mb-2">Spend Cap (SOL)</p>
               <input value={spendCap} onChange={(e) => setSpendCap(e.target.value)}
                 placeholder="Max amount" type="number"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }} />
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input" />
             </div>
             <div className="flex-1">
               <p style={labelStyle} className="mb-2">Allowed Recipients</p>
               <input value={allowedRecipients} onChange={(e) => setAllowedRecipients(e.target.value)}
                 placeholder="wallet1,wallet2"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
-                style={{ background: "#0f0f0f", border: "1px solid #2a2a2a", color: "var(--chalk)" }} />
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono liquid-input" />
             </div>
           </div>
 
           {mode === "autonomous" && (
             <div className="px-4 py-3 rounded-xl mb-4"
-              style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}>
+              style={{ background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.15)" }}>
               <p className="text-xs" style={{ color: "#4ade80" }}>
                 Autonomous mode will scan ALL pending invoices for the wallet, analyze each with AI,
                 apply your policy, and prepare approved payments for execution.
@@ -308,12 +308,11 @@ export default function AgentPage() {
 
           {error && (
             <p className="text-sm px-4 py-3 rounded-xl mb-4"
-              style={{ background: "#1a0a0a", color: "#ff6b6b" }}>{error}</p>
+              style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>{error}</p>
           )}
 
           <button onClick={runAgent} disabled={running}
-            className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: "var(--spark)" }}>
+            className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
             {running ? "Agent running..." : mode === "autonomous" ? "Run Autonomous Agent" : "Run Agent"}
           </button>
         </div>
@@ -331,7 +330,7 @@ export default function AgentPage() {
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0"
                       style={{
-                        background: isComplete ? "#0a1a0a" : isActive ? "#1a1a0a" : "#0f0f0f",
+                        background: isComplete ? "rgba(74,222,128,0.1)" : isActive ? "rgba(255,107,43,0.1)" : "#0f0f0f",
                         border: `1px solid ${isComplete ? "#4ade80" : isActive ? "var(--spark)" : "#2a2a2a"}`,
                         color: isComplete ? "#4ade80" : isActive ? "var(--spark)" : "#555555",
                       }}>
@@ -340,7 +339,9 @@ export default function AgentPage() {
                     <p className="text-sm" style={{ color: isComplete ? "#4ade80" : isActive ? "var(--chalk)" : "#555555" }}>
                       {label}
                     </p>
-                    {isActive && running && <span className="text-xs" style={{ color: "var(--spark)" }}>processing...</span>}
+                    {isActive && running && (
+                      <span className="text-xs animate-pulse" style={{ color: "var(--spark)" }}>processing...</span>
+                    )}
                   </div>
                 );
               })}
@@ -352,7 +353,7 @@ export default function AgentPage() {
         {result && (
           <>
             <div className="glass-medium rounded-2xl p-6 mb-6">
-              <p style={labelStyle} className="mb-4">AI Analysis — Llama 3.3 via Groq</p>
+              <p style={labelStyle} className="mb-4">AI Analysis</p>
               <p className="text-sm" style={{ color: "#aaaaaa", lineHeight: "1.8" }}>{result.agentResponse}</p>
             </div>
 
@@ -367,11 +368,11 @@ export default function AgentPage() {
 
             <div className="glass-medium rounded-2xl p-6 mb-6">
               <p style={labelStyle} className="mb-4">Invoice</p>
-              <div className="flex justify-between mb-2">
+              <div className="flex justify-between mb-3">
                 <p className="text-sm" style={{ color: "#555555" }}>Title</p>
                 <p className="text-sm" style={{ color: "var(--chalk)" }}>{result.invoice.title}</p>
               </div>
-              <div className="flex justify-between mb-2">
+              <div className="flex justify-between mb-3">
                 <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
                 <p className="text-sm font-medium" style={{ color: "var(--spark)" }}>
                   {result.invoice.amount} {result.invoice.token}
@@ -386,24 +387,23 @@ export default function AgentPage() {
             </div>
 
             {paid ? (
-              <div className="rounded-2xl p-6 text-center" style={{ background: "#0a1a0a", border: "1px solid #1a3a1a" }}>
+              <div className="rounded-2xl p-6 text-center" style={{ background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.2)" }}>
                 <p className="text-lg font-medium mb-2" style={{ color: "#4ade80" }}>Payment Executed</p>
                 <p className="text-xs font-mono mb-4 break-all" style={{ color: "#4ade80" }}>{txSig}</p>
                 <button onClick={() => window.open(`https://explorer.solana.com/tx/${txSig}?cluster=devnet`, "_blank")}
-                  className="px-6 py-2 rounded-xl text-sm font-medium"
-                  style={{ background: "#111111", border: "1px solid #1a3a1a", color: "#4ade80" }}>
+                  className="px-6 py-2.5 rounded-xl text-sm font-medium"
+                  style={{ background: "#111111", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}>
                   View on Explorer
                 </button>
               </div>
             ) : result.approved ? (
               <button onClick={() => executePayment(result.invoice.id)} disabled={paying}
-                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: "var(--spark)" }}>
+                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
                 {payingIds.includes(result.invoice.id) ? "Executing..." : "Execute Payment via Agent"}
               </button>
             ) : (
               <div className="w-full py-4 rounded-xl text-center"
-                style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
+                style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
                 Agent rejected this payment
               </div>
             )}
@@ -427,9 +427,9 @@ export default function AgentPage() {
             </div>
 
             {autonomousResult.approved.length > 0 && (
-              <div className="rounded-2xl overflow-hidden mb-6" style={{ border: "1px solid #1a3a1a" }}>
+              <div className="rounded-2xl overflow-hidden mb-6" style={{ border: "1px solid rgba(74,222,128,0.2)" }}>
                 <div className="px-6 py-4 flex items-center justify-between"
-                  style={{ background: "#0a1a0a", borderBottom: "1px solid #1a3a1a" }}>
+                  style={{ background: "rgba(74,222,128,0.05)", borderBottom: "1px solid rgba(74,222,128,0.15)" }}>
                   <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
                     Approved Payments ({autonomousResult.approved.length})
                   </p>
@@ -441,8 +441,7 @@ export default function AgentPage() {
                         }
                       }}
                       disabled={paying}
-                      className="px-4 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                      style={{ background: "var(--spark)", color: "white" }}>
+                      className="px-4 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
                       {paying ? "Executing all..." : "Execute All"}
                     </button>
                   )}
@@ -454,24 +453,23 @@ export default function AgentPage() {
                       background: i % 2 === 0 ? "#0a0a0a" : "#0f0f0f",
                       borderBottom: i < autonomousResult.approved.length - 1 ? "1px solid #1a1a1a" : "none",
                     }}>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium mb-1 truncate" style={{ color: "var(--chalk)" }}>
                         {item.invoice.title}
                       </p>
                       <p className="text-xs" style={{ color: "#555555" }}>{item.reasoning.slice(0, 80)}...</p>
                     </div>
-                    <div className="flex items-center gap-3 ml-4">
+                    <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                       <p className="text-sm font-medium" style={{ color: "var(--spark)" }}>
                         {item.invoice.amount} {item.invoice.token}
                       </p>
                       {paidIds.includes(item.invoice.id) ? (
                         <span className="text-xs px-3 py-1 rounded-full"
-                          style={{ background: "#0a1a0a", color: "#4ade80" }}>Paid</span>
+                          style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>Paid</span>
                       ) : (
                         <button onClick={() => executePayment(item.invoice.id)}
                           disabled={payingIds.includes(item.invoice.id)}
-                          className="text-xs px-3 py-1 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                          style={{ background: "var(--spark)", color: "white" }}>
+                          className="text-xs px-3 py-1 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
                           {payingIds.includes(item.invoice.id) ? "..." : "Pay"}
                         </button>
                       )}
@@ -483,8 +481,7 @@ export default function AgentPage() {
 
             {autonomousResult.rejected.length > 0 && (
               <div className="rounded-2xl overflow-hidden mb-6" style={{ border: "1px solid #3a0a0a" }}>
-                <div className="px-6 py-4"
-                  style={{ background: "#1a0a0a", borderBottom: "1px solid #3a0a0a" }}>
+                <div className="px-6 py-4" style={{ background: "#1a0a0a", borderBottom: "1px solid #3a0a0a" }}>
                   <p className="text-sm font-medium" style={{ color: "#ff6b6b" }}>
                     Rejected ({autonomousResult.rejected.length})
                   </p>
@@ -507,7 +504,7 @@ export default function AgentPage() {
             )}
 
             {autonomousResult.summary.total === 0 && (
-              <div className="rounded-2xl p-8 text-center" style={cardStyle}>
+              <div className="rounded-2xl p-8 text-center glass-medium">
                 <p className="text-sm" style={{ color: "#888888" }}>
                   No pending invoices found for this wallet.
                 </p>
@@ -516,8 +513,8 @@ export default function AgentPage() {
           </>
         )}
 
-        <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
-          Powered by Flint Protocol · Llama 3.3 via Groq · Solana Devnet
+        <p className="text-center text-xs mt-8" style={{ color: "#333333" }}>
+          Powered by Flint Protocol · Solana Devnet
         </p>
       </div>
     </main>

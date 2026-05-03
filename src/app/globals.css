@@ -93,10 +93,8 @@ input[type=number]::-webkit-outer-spin-button {
    FLINT LIQUID GLASS DESIGN SYSTEM
    ============================================ */
 
-/* Base classes */
 .bg-obsidian { background: #0f0f0f; }
 
-/* LIGHT GLASS — subtle depth */
 .glass-light {
   background: rgba(15, 15, 15, 0.4);
   backdrop-filter: blur(12px);
@@ -105,7 +103,6 @@ input[type=number]::-webkit-outer-spin-button {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-/* MEDIUM GLASS — for cards */
 .glass-medium {
   background: rgba(26, 26, 46, 0.25);
   backdrop-filter: blur(16px);
@@ -114,7 +111,6 @@ input[type=number]::-webkit-outer-spin-button {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* HEAVY GLASS — key focal points only */
 .glass-heavy {
   background: rgba(26, 26, 46, 0.4);
   backdrop-filter: blur(24px);
@@ -123,12 +119,10 @@ input[type=number]::-webkit-outer-spin-button {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
 }
 
-/* Keep old names as aliases for backwards compat */
 .glass { background: rgba(26, 26, 46, 0.25); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 .glass-card { background: rgba(15, 15, 15, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); }
 .glass-input { background: rgba(15, 15, 15, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.08); }
 
-/* LIQUID GLASS — the star */
 .liquid-glass {
   background:
     linear-gradient(
@@ -169,7 +163,6 @@ input[type=number]::-webkit-outer-spin-button {
     inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* LIQUID BUTTON */
 .liquid-btn {
   background:
     linear-gradient(135deg, #FF6B2B 0%, #ff8c5a 50%, #FF6B2B 100%);
@@ -205,7 +198,6 @@ input[type=number]::-webkit-outer-spin-button {
 .liquid-btn:hover { box-shadow: 0 8px 24px rgba(255, 107, 43, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
 .liquid-btn:active { transform: scale(0.98); }
 
-/* SECONDARY LIQUID BUTTON */
 .liquid-btn-secondary {
   background: rgba(26, 26, 46, 0.6);
   backdrop-filter: blur(12px);
@@ -222,7 +214,6 @@ input[type=number]::-webkit-outer-spin-button {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* LIQUID INPUT */
 .liquid-input {
   background: rgba(15, 15, 15, 0.5);
   backdrop-filter: blur(8px);
@@ -238,18 +229,15 @@ input[type=number]::-webkit-outer-spin-button {
   box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.15);
 }
 
-/* FOCUS RING */
 .focus-ring:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(15, 15, 15, 0.9), 0 0 0 4px rgba(255, 107, 43, 0.4);
 }
 
-/* TRANSITIONS */
 .transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .transition-snappy { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
 .transition-fluid { transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 
-/* FLOAT ANIMATION for landing page particles */
 @keyframes float {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   25% { transform: translateY(-20px) rotate(5deg); }
@@ -258,12 +246,78 @@ input[type=number]::-webkit-outer-spin-button {
 }
 .animate-float { animation: float linear infinite; }
 
-/* PULSE for live indicators */
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.8); }
 }
 .animate-pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ============================================
+   FLINT CUSTOM LOADER
+   ============================================ */
+
+@keyframes flint-spark {
+  0%   { transform: scale(0.88) rotate(-4deg); opacity: 0.65; filter: drop-shadow(0 0 4px rgba(255, 107, 43, 0.4)); }
+  50%  { transform: scale(1.1) rotate(4deg);  opacity: 1;    filter: drop-shadow(0 0 14px rgba(255, 107, 43, 0.9)); }
+  100% { transform: scale(0.88) rotate(-4deg); opacity: 0.65; filter: drop-shadow(0 0 4px rgba(255, 107, 43, 0.4)); }
+}
+
+@keyframes flint-line-pulse {
+  0%, 100% { stroke-opacity: 1;   stroke-dashoffset: 0; }
+  50%       { stroke-opacity: 0.3; stroke-dashoffset: 8; }
+}
+
+.flint-loader-svg {
+  animation: flint-spark 1.4s ease-in-out infinite;
+}
+
+.flint-line-main {
+  stroke-dasharray: 24;
+  animation: flint-line-pulse 1.4s ease-in-out infinite;
+}
+
+.flint-line-sub {
+  stroke-dasharray: 18;
+  animation: flint-line-pulse 1.4s ease-in-out infinite 0.2s;
+}
+
+/* ============================================
+   TOKEN PILL SELECTOR
+   ============================================ */
+
+.token-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  flex: 1;
+  justify-content: center;
+}
+
+.token-pill-active {
+  background: rgba(255, 107, 43, 0.15);
+  border-color: rgba(255, 107, 43, 0.5);
+  color: #FF6B2B;
+  box-shadow: 0 0 0 1px rgba(255, 107, 43, 0.2), 0 4px 12px rgba(255, 107, 43, 0.15);
+}
+
+.token-pill-inactive {
+  background: rgba(15, 15, 15, 0.5);
+  border-color: rgba(255, 255, 255, 0.07);
+  color: #666666;
+}
+
+.token-pill-inactive:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #999999;
+  background: rgba(15, 15, 15, 0.7);
+}
 
 /* Mobile fallback */
 @media (prefers-reduced-motion: reduce), (max-width: 640px) {
@@ -272,4 +326,130 @@ input[type=number]::-webkit-outer-spin-button {
     transition: none;
   }
   .animate-float { animation: none; }
+  .flint-loader-svg { animation: pulse-dot 1.4s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255, 107, 43, 0.6)); }
+}
+
+/* Responsive padding helpers */
+@media (max-width: 640px) {
+  .page-pad { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ============================================
+   BACK BUTTON
+   ============================================ */
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #777777;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  color: #cccccc;
+  transform: translateX(-1px);
+}
+
+.back-btn svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.back-btn:hover svg {
+  opacity: 1;
+}
+
+/* ============================================
+   SLIDE-UP FADE ANIMATIONS (landing page)
+   ============================================ */
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUpFade 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+}
+
+.anim-d0  { animation-delay: 0s; }
+.anim-d1  { animation-delay: 0.1s; }
+.anim-d2  { animation-delay: 0.2s; }
+.anim-d3  { animation-delay: 0.3s; }
+.anim-d4  { animation-delay: 0.4s; }
+.anim-d5  { animation-delay: 0.5s; }
+.anim-d6  { animation-delay: 0.6s; }
+.anim-d7  { animation-delay: 0.7s; }
+
+/* ============================================
+   FEATURE ICON WRAPPER
+   ============================================ */
+
+.feature-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   HOW IT WORKS STEP
+   ============================================ */
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,107,43,0.3);
+  background: rgba(255,107,43,0.08);
+  color: #FF6B2B;
+}
+
+/* ============================================
+   UNIFORM SECONDARY NAV BUTTONS
+   ============================================ */
+
+.nav-pill {
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #888888;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.nav-pill:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  color: #cccccc;
 }

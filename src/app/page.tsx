@@ -1,18 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/logo";
 
-interface Stats {
-  invoices: { total: number; paid: number };
-  successRate: number;
-  volume: { total: number };
-}
+const IconZap = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+const IconCpu = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" />
+    <path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M20 9h2M2 15h2M20 15h2" />
+  </svg>
+);
+const IconLock = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+const IconShield = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" />
+  </svg>
+);
+const IconGlobe = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+const IconFile = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+);
 
 export default function Home() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     const hasVisited = localStorage.getItem("flint_visited");
@@ -22,15 +49,25 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    fetch("/api/analytics")
-      .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => {});
-  }, []);
+  const features = [
+    { Icon: IconZap,    color: "#FF6B2B", bg: "rgba(255,107,43,0.1)",   title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
+    { Icon: IconCpu,    color: "#4ade80", bg: "rgba(74,222,128,0.1)",   title: "AI Agent Executable",     desc: "Autonomous agents read and pay via JSON-LD" },
+    { Icon: IconLock,   color: "#FFB800", bg: "rgba(255,184,0,0.1)",    title: "Escrow + Conditions",     desc: "Enforceable conditions with PDA escrow" },
+    { Icon: IconShield, color: "#4ade80", bg: "rgba(74,222,128,0.1)",   title: "On-chain Receipts",       desc: "Every payment is publicly verifiable forever" },
+    { Icon: IconGlobe,  color: "#8888ff", bg: "rgba(136,136,255,0.1)",  title: "x402 Compatible",         desc: "Standard agentic payment response layer" },
+    { Icon: IconFile,   color: "#aaaaaa", bg: "rgba(170,170,170,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance" },
+  ];
+
+  const navButtons = [
+    { label: "Dashboard", path: "/dashboard" },
+    { label: "AI Agent",  path: "/agent" },
+    { label: "Embed",     path: "/embed-demo" },
+    { label: "Spec",      path: "/spec" },
+    { label: "Business",  path: "/business" },
+  ];
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <main className="min-h-screen flex flex-col items-center justify-center px-5 sm:px-8 relative overflow-hidden">
 
       {/* Background orbs */}
       <div style={{
@@ -51,7 +88,7 @@ export default function Home() {
         {/* Logo */}
         <div className="flex flex-col items-center gap-6 mb-12">
           <Logo size={56} />
-          <div className="text-center mt-2">
+          <div className="text-center mt-1">
             <p className="text-lg" style={{ color: "#aaaaaa" }}>
               The open payment request protocol for Solana.
             </p>
@@ -61,12 +98,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* Primary CTA */}
         <div className="flex flex-col items-center gap-4 mb-12">
           <button
             onClick={() => router.push("/create")}
-            className="px-8 py-4 rounded-2xl text-white font-medium text-lg transition-smooth hover:opacity-90 active:scale-95 focus-ring"
-            style={{ background: "var(--spark)", minWidth: "260px" }}
+            className="px-8 py-4 rounded-2xl text-white font-medium text-lg transition-smooth hover:opacity-90 active:scale-95 focus-ring liquid-btn"
+            style={{ minWidth: "260px" }}
           >
             Create Payment Request
           </button>
@@ -74,19 +111,11 @@ export default function Home() {
             No wallet setup required for the payer
           </p>
           <div className="flex gap-2 flex-wrap justify-center mt-2">
-            {[
-              { label: "Dashboard", path: "/dashboard", style: { background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#aaaaaa" } },
-              { label: "AI Agent", path: "/agent", style: { background: "rgba(255,107,43,0.1)", border: "1px solid rgba(255,107,43,0.3)", color: "#FF6B2B" } },
-              { label: "Embed", path: "/embed-demo", style: { background: "rgba(136,136,255,0.1)", border: "1px solid rgba(136,136,255,0.3)", color: "#8888ff" } },
-              { label: "Analytics", path: "/analytics", style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80" } },
-              { label: "Spec", path: "/spec", style: { background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#666666" } },
-              { label: "Business", path: "/business", style: { background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#666666" } },
-            ].map((btn) => (
+            {navButtons.map((btn) => (
               <button
                 key={btn.label}
                 onClick={() => router.push(btn.path)}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition-smooth hover:opacity-80 focus-ring"
-                style={btn.style}
+                className="nav-pill"
               >
                 {btn.label}
               </button>
@@ -94,54 +123,21 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Live stats */}
-        <div className="glass-card rounded-2xl p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium tracking-widest uppercase"
-              style={{ color: "#666666" }}>
-              Live Protocol Stats
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ background: "#4ade80" }} />
-              <p className="text-xs" style={{ color: "#4ade80" }}>Solana Devnet</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { label: "Invoices Created", value: stats ? String(stats.invoices.total) : "—" },
-              { label: "Successfully Paid", value: stats ? String(stats.invoices.paid) : "—" },
-              { label: "Success Rate", value: stats ? `${stats.successRate}%` : "—" },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-2xl font-medium mb-1" style={{ color: "var(--spark)" }}>
-                  {stat.value}
-                </p>
-                <p className="text-xs" style={{ color: "#666666" }}>{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Feature grid */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          {[
-            { icon: "→", title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
-            { icon: "◈", title: "AI Agent Executable", desc: "Autonomous agents read and pay via JSON-LD" },
-            { icon: "◻", title: "Escrow + Conditions", desc: "Enforceable conditions with PDA escrow" },
-            { icon: "✓", title: "On-chain Receipts", desc: "Every payment is publicly verifiable forever" },
-            { icon: "⬡", title: "x402 Compatible", desc: "Standard agentic payment response layer" },
-            { icon: "≡", title: "UBL 2.1 Export", desc: "B2B/PEPPOL-grade invoice compliance" },
-          ].map((f) => (
-            <div key={f.title} className="glass-card rounded-2xl p-4 transition-smooth hover:opacity-80">
-              <p className="text-lg font-medium mb-2" style={{ color: "var(--spark)" }}>{f.icon}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
+          {features.map((f) => (
+            <div key={f.title} className="glass-card rounded-2xl p-5 transition-smooth hover:opacity-80">
+              <div className="feature-icon-wrap" style={{ background: f.bg }}>
+                <span style={{ color: f.color }}><f.Icon /></span>
+              </div>
               <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>{f.title}</p>
-              <p className="text-xs" style={{ color: "#666666" }}>{f.desc}</p>
+              <p className="text-xs leading-relaxed" style={{ color: "#666666" }}>{f.desc}</p>
             </div>
           ))}
         </div>
 
         {/* Footer stats */}
-        <div className="flex gap-12 justify-center pt-6"
+        <div className="flex gap-8 sm:gap-12 justify-center py-6"
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           {[
             { value: "< 1s", label: "Settlement time" },
@@ -149,7 +145,7 @@ export default function Home() {
             { value: "MIT", label: "License" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <p className="text-2xl font-medium mb-1" style={{ color: "var(--spark)" }}>
+              <p className="text-xl sm:text-2xl font-medium mb-1" style={{ color: "var(--spark)" }}>
                 {stat.value}
               </p>
               <p className="text-xs" style={{ color: "#666666" }}>{stat.label}</p>
@@ -158,7 +154,7 @@ export default function Home() {
         </div>
 
         {/* Footer links */}
-        <div className="flex items-center justify-between mt-8 pt-4"
+        <div className="flex items-center justify-between mt-6 pt-4"
           style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
           <p className="text-xs" style={{ color: "#333333" }}>
             Flint · FRS-1 · MIT License
