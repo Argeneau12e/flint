@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Logo from "@/components/logo";
 
 interface ReceiptData {
   id: string;
@@ -88,19 +89,8 @@ export default function VerifyPage() {
     <main className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="max-w-sm w-full">
 
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
-            <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
-              stroke="white" strokeWidth="2.5" fill="none" />
-            <polyline points="48,8 60,8 60,20"
-              stroke="#FF6B2B" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-          </svg>
-          <span className="text-sm font-medium tracking-widest"
-            style={{ color: "#888888" }}>FLINT</span>
+        <div className="flex items-center justify-center mb-8">
+          <Logo size={28} />
         </div>
 
         <div className="text-center mb-8">
@@ -119,8 +109,7 @@ export default function VerifyPage() {
         </div>
 
         <div
-          className="rounded-2xl p-6 mb-4"
-          style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+          className="glass-medium rounded-2xl p-6 mb-4"
         >
           <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Receipt Details

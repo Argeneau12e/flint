@@ -1,5 +1,6 @@
 "use client";
 
+import Logo from "@/components/logo";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -146,22 +147,13 @@ export default function DashboardPage() {
         {/* Not connected */}
         {!connected && (
           <div
-            className="glass rounded-2xl p-12 text-center"
+            className="glass-light rounded-2xl p-12 text-center"
           >
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
               style={{ background: "#0f0f0f", border: "1px solid #2a2a2a" }}
             >
-              <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
-                <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
-                  stroke="white" strokeWidth="2.5" fill="none" />
-                <polyline points="48,8 60,8 60,20"
-                  stroke="#FF6B2B" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-                <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-                <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-              </svg>
+              <img src="/flint-icon-32.png" width="32" height="32" alt="Flint" />
             </div>
             <h2 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
               Connect your wallet
@@ -222,7 +214,7 @@ export default function DashboardPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="glass-card rounded-xl p-4"
+                  className="glass-light rounded-xl p-4"
                 >
                   <p className="text-xs mb-2" style={{ color: "#555555" }}>
                     {stat.label}
@@ -239,11 +231,11 @@ export default function DashboardPage() {
 
             {/* Invoice list */}
             <div
-              className="glass-card rounded-2xl overflow-hidden"
+              className="glass-medium rounded-2xl overflow-hidden"
             >
               <div
                 className="px-6 py-4 flex items-center justify-between"
-                style={{ background: "rgba(26,26,46,0.6)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                style={{ background: "rgba(15,15,15,0.4)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
                   Invoice History

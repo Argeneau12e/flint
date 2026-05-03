@@ -55,6 +55,8 @@ export default function InvoicePage() {
 
     fetchInvoice();
 
+    let pollCount = 0;
+    const maxPolls = 8;
     const interval = setInterval(async () => {
       if (invoice?.status === "paid") {
         clearInterval(interval);
@@ -73,7 +75,7 @@ export default function InvoicePage() {
       } catch {
         console.error("Polling error");
       }
-    }, 10000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [id]);
@@ -368,7 +370,7 @@ export default function InvoicePage() {
 
         {/* Status banner */}
         <div
-          className="glass-card mt-6 mb-8 px-6 py-4 rounded-2xl flex items-center gap-4"
+          className="glass-light mt-6 mb-8 px-6 py-4 rounded-2xl flex items-center gap-4"
           style={{
             border: isPaid ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.06)",
           }}
@@ -398,7 +400,7 @@ export default function InvoicePage() {
         </div>
 
         {/* Invoice card */}
-        <div className="glass-card rounded-2xl p-8 mb-6">
+        <div className="glass-medium rounded-2xl p-8 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-xs mb-1" style={{ color: "#555555" }}>INVOICE</p>
@@ -513,7 +515,7 @@ export default function InvoicePage() {
                 style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Payment Link
               </p>
-              <div className="glass-input flex items-center gap-3 px-4 py-3 rounded-xl mb-4">
+              <div className="glass-light flex items-center gap-3 px-4 py-3 rounded-xl mb-4">
                 <p className="text-sm font-mono flex-1 truncate" style={{ color: "var(--spark)" }}>
                   {paymentLink}
                 </p>
@@ -686,7 +688,7 @@ export default function InvoicePage() {
             <div className="flex flex-col gap-3">
               {auditLog.map((entry) => (
                 <div key={entry.id} className="flex items-start gap-3">
-                  <div className="verified-badge flex-shrink-0" style={{
+                  <div className="verified-badge flex-shrink-0 glass-light" style={{
                     width: "20px", height: "20px", fontSize: "10px",
                     background: entry.action === "paid" ? "#4ade80" : entry.action.includes("reject") ? "#ff6b6b" : "var(--spark)",
                   }}>

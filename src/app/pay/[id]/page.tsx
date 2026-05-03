@@ -12,6 +12,7 @@ declare global {
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Logo from "@/components/logo";
 
 interface Invoice {
   id: string;
@@ -60,6 +61,8 @@ export default function PayPage() {
 
     fetchInvoice();
 
+    let pollCount = 0;
+    const maxPolls = 8;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/invoice/status?id=${id}`);
@@ -75,7 +78,7 @@ export default function PayPage() {
       } catch {
         console.error("Polling error");
       }
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [id]);
@@ -250,38 +253,13 @@ export default function PayPage() {
       <div className="max-w-sm w-full">
 
         {/* Flint branding */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-            <polygon
-              points="32,6 54,18 54,46 32,58 10,46 10,18"
-              stroke="white"
-              strokeWidth="2.5"
-              fill="none"
-            />
-            <polyline
-              points="48,8 60,8 60,20"
-              stroke="#FF6B2B"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-          </svg>
-          <span
-            className="text-sm font-medium tracking-widest"
-            style={{ color: "#888888" }}
-          >
-            FLINT
-          </span>
+        <div className="flex items-center justify-center mb-8">
+          <Logo size={32} />
         </div>
 
         {/* Payment card */}
         <div
-          className="rounded-2xl p-8 mb-4"
-          style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+          className="glass-medium rounded-2xl p-8 mb-4"
         >
           <p className="text-xs mb-1" style={{ color: "#555555" }}>
             PAYMENT REQUEST
@@ -295,8 +273,7 @@ export default function PayPage() {
 
           {/* Amount */}
           <div
-            className="flex items-center justify-center py-8 mb-6 rounded-2xl"
-            style={{ background: "#0f0f0f" }}
+            className="glass-light flex items-center justify-center py-8 mb-6 rounded-xl"
           >
             <span
               className="text-5xl font-medium"

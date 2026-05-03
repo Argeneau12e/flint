@@ -116,7 +116,7 @@ function CreatePageInner() {
         </p>
       </div>
 
-      <div className="max-w-lg mx-auto rounded-2xl p-8 flex flex-col gap-6 glass">
+      <div className="max-w-lg mx-auto rounded-2xl p-8 flex flex-col gap-6 glass-medium">
 
         <div>
           <label style={labelStyle}>Invoice Title</label>
@@ -124,8 +124,7 @@ function CreatePageInner() {
             value={title}
             onChange={(e) => { setTitle(e.target.value); setError(""); }}
             placeholder="e.g. Logo design Phase 1"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={inputStyle}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
           />
         </div>
 
@@ -139,8 +138,7 @@ function CreatePageInner() {
               type="number"
               min="0"
               step="any"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={inputStyle}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
             />
           </div>
           <div style={{ width: "110px" }}>
@@ -148,8 +146,7 @@ function CreatePageInner() {
             <select
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={inputStyle}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
             >
               <option value="SOL">SOL</option>
               <option value="USDC">USDC</option>
@@ -163,8 +160,7 @@ function CreatePageInner() {
             value={recipientWallet}
             onChange={(e) => { setRecipientWallet(e.target.value); setError(""); }}
             placeholder="Your Solana wallet address"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
-            style={inputStyle}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
           />
           <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
             This is where you will receive the payment
@@ -178,8 +174,7 @@ function CreatePageInner() {
             onChange={(e) => setMemo(e.target.value)}
             placeholder="What is this payment for?"
             rows={2}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-            style={inputStyle}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input resize-none"
           />
         </div>
 
@@ -188,8 +183,7 @@ function CreatePageInner() {
           <select
             value={expiryDays}
             onChange={(e) => setExpiryDays(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={inputStyle}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
           >
             <option value="1">1 day</option>
             <option value="3">3 days</option>
@@ -202,8 +196,7 @@ function CreatePageInner() {
         {/* Advanced toggle */}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4"
-          style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.08)", color: "#aaaaaa" }}
+          className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4 glass-light"
         >
           <span>Advanced Options</span>
           <span style={{ fontSize: "12px", color: "var(--spark)" }}>
@@ -246,8 +239,7 @@ function CreatePageInner() {
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
                 placeholder="e.g. Deliver mockups before payment releases"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                style={inputStyle}
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
               />
               <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
                 Condition the payer must meet before payment is valid
@@ -359,8 +351,7 @@ function CreatePageInner() {
                     <select
                       value={recurringInterval}
                       onChange={(e) => setRecurringInterval(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                      style={inputStyle}
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                     >
                       <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>
@@ -376,8 +367,7 @@ function CreatePageInner() {
                       min="1"
                       max="120"
                       placeholder="12"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                      style={inputStyle}
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                     />
                   </div>
                 </div>
@@ -398,8 +388,7 @@ function CreatePageInner() {
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
                 placeholder="https://yourapp.com/webhooks/flint"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
-                style={inputStyle}
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
               />
               <p style={{ color: "#444444", fontSize: "12px", marginTop: "4px" }}>
                 We POST to this URL when your invoice is paid
@@ -418,8 +407,7 @@ function CreatePageInner() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-          style={{ background: "var(--spark)" }}
+          className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 liquid-btn"
         >
           {loading ? "Generating link..." : "Generate Payment Link"}
         </button>

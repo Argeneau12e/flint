@@ -128,8 +128,7 @@ export default function SpecPage() {
             </div>
             <div className="flex flex-col gap-2">
               {section.rules.map((rule, i) => (
-                <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}>
+                <div key={i} className="glass-light flex items-start gap-3 px-4 py-3 rounded-xl">
                   <span className="text-xs font-medium flex-shrink-0 mt-0.5"
                     style={{ color: section.color }}>
                     {section.keyword}
@@ -145,7 +144,7 @@ export default function SpecPage() {
       <section className="mb-12">
         <h2 className="text-xs font-medium tracking-widest uppercase mb-4"
           style={{ color: "var(--spark)" }}>The Flint Request Object</h2>
-        <div className="rounded-xl p-6" style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}>
+        <div className="glass-light flex items-start gap-3 px-4 py-3 rounded-xl">
           <pre className="text-sm overflow-x-auto" style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
 {`{
   // Required
@@ -190,8 +189,7 @@ export default function SpecPage() {
         </p>
         <div className="flex flex-col gap-3">
           {steps.map((step, i) => (
-            <div key={i} className="flex items-start gap-4 px-4 py-3 rounded-xl"
-              style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}>
+            <div key={i} className="glass-light flex items-start gap-3 px-4 py-3 rounded-xl">
               <span className="text-xs font-medium mt-0.5 flex-shrink-0"
                 style={{ color: "var(--spark)" }}>
                 {String(i + 1).padStart(2, "0")}

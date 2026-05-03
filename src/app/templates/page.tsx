@@ -174,8 +174,7 @@ export default function TemplatesPage() {
 
         {connected && showForm && (
           <div
-            className="rounded-2xl p-6 mb-6 flex flex-col gap-4"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+            className="glass-medium rounded-2xl p-6 mb-6 flex flex-col gap-4"
           >
             <h2 className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
               New Template
@@ -186,7 +185,7 @@ export default function TemplatesPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Consulting Hour"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                 style={inputStyle}
               />
             </div>
@@ -196,7 +195,7 @@ export default function TemplatesPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="e.g. 1 Hour Consulting Session"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                 style={inputStyle}
               />
             </div>
@@ -208,7 +207,7 @@ export default function TemplatesPage() {
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   placeholder="0.00"
                   type="number"
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                   style={inputStyle}
                 />
               </div>
@@ -217,7 +216,7 @@ export default function TemplatesPage() {
                 <select
                   value={form.token}
                   onChange={(e) => setForm({ ...form, token: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                   style={inputStyle}
                 >
                   <option value="SOL">SOL</option>
@@ -231,7 +230,7 @@ export default function TemplatesPage() {
                 value={form.memo}
                 onChange={(e) => setForm({ ...form, memo: e.target.value })}
                 placeholder="Default memo for this template"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
                 style={inputStyle}
               />
             </div>
@@ -254,8 +253,7 @@ export default function TemplatesPage() {
 
         {connected && !loading && templates.length === 0 && !showForm && (
           <div
-            className="rounded-2xl p-12 text-center"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+            className="glass-card rounded-2xl p-12 text-center"
           >
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
@@ -289,8 +287,7 @@ export default function TemplatesPage() {
             {templates.map((template) => (
               <div
                 key={template.id}
-                className="rounded-2xl p-5 flex items-center justify-between"
-                style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+                className="glass-light rounded-2xl p-5 flex items-center justify-between"
               >
                 <div>
                   <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>

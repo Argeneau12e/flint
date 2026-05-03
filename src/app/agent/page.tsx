@@ -214,7 +214,8 @@ export default function AgentPage() {
     "Execution ready",
   ];
 
-  const cardStyle = { background: "#111111", border: "1px solid #1f1f1f" };
+  const cardStyle = { background: "rgba(26,26,46,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 4px 24px rgba(0,0,0,0.3)" };
+  const cardClass = "glass-medium rounded-2xl";
   const labelStyle = { color: "#555555", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const };
 
   return (
@@ -243,20 +244,25 @@ export default function AgentPage() {
         {/* Mode toggle */}
         <div className="flex gap-3 mb-6">
           {(["single", "autonomous"] as const).map((m) => (
-            <button key={m} onClick={() => { setMode(m); setResult(null); setAutonomousResult(null); setCurrentStep(0); }}
-              className="flex-1 py-3 rounded-xl text-sm font-medium transition-all"
-              style={{
-                background: mode === m ? "var(--spark)" : "#111111",
-                border: `1px solid ${mode === m ? "var(--spark)" : "#2a2a2a"}`,
-                color: mode === m ? "white" : "#888888",
-              }}>
+            <button
+              key={m}
+              onClick={() => {
+                setMode(m);
+                setResult(null);
+                setAutonomousResult(null);
+                setCurrentStep(0);
+              }}
+              className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${
+                mode === m ? "liquid-glass" : "glass-light"
+              }`}
+            >
               {m === "single" ? "Single Invoice" : "Autonomous Mode"}
             </button>
           ))}
         </div>
 
         {/* Input card */}
-        <div className="rounded-2xl p-6 mb-6" style={cardStyle}>
+        <div className="glass-medium rounded-2xl p-6 mb-6">
           <p style={labelStyle} className="mb-4">
             {mode === "single" ? "Invoice ID" : "Wallet to Scan"}
           </p>
@@ -314,7 +320,7 @@ export default function AgentPage() {
 
         {/* Steps */}
         {(running || result || autonomousResult) && (
-          <div className="rounded-2xl p-6 mb-6" style={cardStyle}>
+          <div className="glass-medium rounded-2xl p-6 mb-6">
             <p style={labelStyle} className="mb-4">Agent Execution</p>
             <div className="flex flex-col gap-3">
               {stepLabels.map((label, i) => {
@@ -345,7 +351,7 @@ export default function AgentPage() {
         {/* Single result */}
         {result && (
           <>
-            <div className="rounded-2xl p-6 mb-6" style={cardStyle}>
+            <div className="glass-medium rounded-2xl p-6 mb-6">
               <p style={labelStyle} className="mb-4">AI Analysis — Llama 3.3 via Groq</p>
               <p className="text-sm" style={{ color: "#aaaaaa", lineHeight: "1.8" }}>{result.agentResponse}</p>
             </div>
@@ -359,7 +365,7 @@ export default function AgentPage() {
               </div>
             )}
 
-            <div className="rounded-2xl p-6 mb-6" style={cardStyle}>
+            <div className="glass-medium rounded-2xl p-6 mb-6">
               <p style={labelStyle} className="mb-4">Invoice</p>
               <div className="flex justify-between mb-2">
                 <p className="text-sm" style={{ color: "#555555" }}>Title</p>
@@ -413,7 +419,7 @@ export default function AgentPage() {
                 { label: "Approved", value: autonomousResult.summary.approved, color: "#4ade80" },
                 { label: "Rejected", value: autonomousResult.summary.rejected, color: "#ff6b6b" },
               ].map((s) => (
-                <div key={s.label} className="rounded-xl p-4 text-center" style={cardStyle}>
+                <div key={s.label} className="glass-medium rounded-xl p-4 text-center">
                   <p className="text-xs mb-2" style={{ color: "#555555" }}>{s.label}</p>
                   <p className="text-2xl font-medium" style={{ color: s.color || "var(--spark)" }}>{s.value}</p>
                 </div>
