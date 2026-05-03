@@ -1,220 +1,190 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/logo";
 
-interface Stats {
-  invoices: { total: number; paid: number };
-  successRate: number;
-  volume: { total: number };
-}
+const IconZap = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+const IconCpu = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" />
+    <path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M20 9h2M2 15h2M20 15h2" />
+  </svg>
+);
+const IconLock = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+const IconShield = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" />
+  </svg>
+);
+const IconGlobe = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+const IconFile = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+);
 
 export default function Home() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    fetch("/api/analytics")
-      .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => {});
+    const hasVisited = localStorage.getItem("flint_visited");
+    if (!hasVisited) {
+      localStorage.setItem("flint_visited", "true");
+      router.push("/landing");
+    }
   }, []);
 
+  const features = [
+    { Icon: IconZap,    color: "#FF6B2B", bg: "rgba(255,107,43,0.1)",   title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
+    { Icon: IconCpu,    color: "#4ade80", bg: "rgba(74,222,128,0.1)",   title: "AI Agent Executable",     desc: "Autonomous agents read and pay via JSON-LD" },
+    { Icon: IconLock,   color: "#FFB800", bg: "rgba(255,184,0,0.1)",    title: "Escrow + Conditions",     desc: "Enforceable conditions with PDA escrow" },
+    { Icon: IconShield, color: "#4ade80", bg: "rgba(74,222,128,0.1)",   title: "On-chain Receipts",       desc: "Every payment is publicly verifiable forever" },
+    { Icon: IconGlobe,  color: "#8888ff", bg: "rgba(136,136,255,0.1)",  title: "x402 Compatible",         desc: "Standard agentic payment response layer" },
+    { Icon: IconFile,   color: "#aaaaaa", bg: "rgba(170,170,170,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance" },
+  ];
+
+  const navButtons = [
+    { label: "Dashboard", path: "/dashboard" },
+    { label: "AI Agent",  path: "/agent" },
+    { label: "Embed",     path: "/embed-demo" },
+    { label: "Spec",      path: "/spec" },
+    { label: "Business",  path: "/business" },
+  ];
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen flex flex-col items-center justify-center px-5 sm:px-8 relative overflow-hidden">
 
-      <div className="flex flex-col items-center gap-6 mb-12">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-          <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
-            stroke="white" strokeWidth="2.5" fill="none" />
-          <polyline points="48,8 60,8 60,20"
-            stroke="#FF6B2B" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-          <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-          <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-        </svg>
+      {/* Background orbs */}
+      <div style={{
+        position: "fixed", top: "-20%", left: "-10%",
+        width: "600px", height: "600px", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(255,107,43,0.06) 0%, transparent 70%)",
+        pointerEvents: "none", zIndex: 0,
+      }} />
+      <div style={{
+        position: "fixed", bottom: "-20%", right: "-10%",
+        width: "500px", height: "500px", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(26,26,46,0.8) 0%, transparent 70%)",
+        pointerEvents: "none", zIndex: 0,
+      }} />
 
-        <div className="text-center">
-          <h1 className="text-5xl font-medium tracking-widest mb-3"
-            style={{ color: "var(--chalk)" }}>
-            FLINT
-          </h1>
-          <p className="text-lg" style={{ color: "#888888" }}>
-            The open payment request protocol for Solana.
-          </p>
-          <p className="text-sm mt-1" style={{ color: "#555555" }}>
-            Human-shareable. Agent-executable.
-          </p>
-        </div>
-      </div>
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: "680px" }}>
 
-      <div className="flex flex-col items-center gap-4 mb-16">
-        <button
-          onClick={() => router.push("/create")}
-          className="px-8 py-4 rounded-xl text-white font-medium text-lg transition-all duration-200 hover:opacity-90 active:scale-95"
-          style={{ background: "var(--spark)" }}
-        >
-          Create Payment Request
-        </button>
-        <p className="text-sm" style={{ color: "#555555" }}>
-          No wallet setup required for the payer
-        </p>
-        <div className="flex gap-3 flex-wrap justify-center">
-          <button onClick={() => router.push("/dashboard")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#888888" }}>
-            Dashboard
-          </button>
-          <button onClick={() => router.push("/agent")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "#1a1a0a", border: "1px solid #FF6B2B", color: "#FF6B2B" }}>
-            AI Agent Demo
-          </button>
-          <button onClick={() => router.push("/embed-demo")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "#1a1a2e", border: "1px solid #8888ff", color: "#8888ff" }}>
-            Embed Button
-          </button>
-          <button onClick={() => router.push("/analytics")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "#0a1a1a", border: "1px solid #4ade80", color: "#4ade80" }}>
-            Analytics
-          </button>
-          <button onClick={() => router.push("/spec")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#555555" }}>
-            Protocol Spec
-          </button>
-          <button onClick={() => router.push("/business")}
-            className="px-6 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-            style={{ background: "transparent", border: "1px solid #2a2a2a", color: "#555555" }}>
-            Business Model
-          </button>
-        </div>
-      </div>
-
-      {/* Live protocol stats */}
-      <div
-        className="w-full max-w-2xl rounded-2xl p-6 mb-8"
-        style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-medium tracking-widest uppercase"
-            style={{ color: "#555555" }}>
-            Live Protocol Stats
-          </p>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full" style={{ background: "#4ade80" }} />
-            <p className="text-xs" style={{ color: "#4ade80" }}>Solana Devnet</p>
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-6 mb-12">
+          <Logo size={56} />
+          <div className="text-center mt-1">
+            <p className="text-lg" style={{ color: "#aaaaaa" }}>
+              The open payment request protocol for Solana.
+            </p>
+            <p className="text-sm mt-1" style={{ color: "#666666" }}>
+              Human-shareable. Agent-executable.
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            {
-              label: "Invoices Created",
-              value: stats ? String(stats.invoices.total) : "—",
-            },
-            {
-              label: "Successfully Paid",
-              value: stats ? String(stats.invoices.paid) : "—",
-            },
-            {
-              label: "Success Rate",
-              value: stats ? `${stats.successRate}%` : "—",
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p className="text-2xl font-medium mb-1"
-                style={{ color: "var(--spark)" }}>
-                {stat.value}
-              </p>
-              <p className="text-xs" style={{ color: "#555555" }}>
-                {stat.label}
-              </p>
+
+        {/* Primary CTA */}
+        <div className="flex flex-col items-center gap-4 mb-12">
+          <button
+            onClick={() => router.push("/create")}
+            className="px-8 py-4 rounded-2xl text-white font-medium text-lg transition-smooth hover:opacity-90 active:scale-95 focus-ring liquid-btn"
+            style={{ minWidth: "260px" }}
+          >
+            Create Payment Request
+          </button>
+          <p className="text-sm" style={{ color: "#666666" }}>
+            No wallet setup required for the payer
+          </p>
+          <div className="flex gap-2 flex-wrap justify-center mt-2">
+            {navButtons.map((btn) => (
+              <button
+                key={btn.label}
+                onClick={() => router.push(btn.path)}
+                className="nav-pill"
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
+          {features.map((f) => (
+            <div key={f.title} className="glass-card rounded-2xl p-5 transition-smooth hover:opacity-80">
+              <div className="feature-icon-wrap" style={{ background: f.bg }}>
+                <span style={{ color: f.color }}><f.Icon /></span>
+              </div>
+              <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>{f.title}</p>
+              <p className="text-xs leading-relaxed" style={{ color: "#666666" }}>{f.desc}</p>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Protocol features */}
-      <div className="w-full max-w-2xl grid grid-cols-2 gap-3 mb-8">
-        {[
-          { icon: "→", title: "Solana Actions + Blinks", desc: "Payment links work in any Blink-aware wallet" },
-          { icon: "◈", title: "AI Agent Executable", desc: "Autonomous agents read and pay invoices via JSON-LD" },
-          { icon: "◻", title: "Escrow + Conditions", desc: "Enforceable conditions with PDA escrow" },
-          { icon: "✓", title: "On-chain Receipts", desc: "Every payment is publicly verifiable forever" },
-          { icon: "⬡", title: "x402 Compatible", desc: "Standard agentic payment response layer" },
-          { icon: "≡", title: "UBL 2.1 Export", desc: "B2B/PEPPOL-grade invoice compliance" },
-        ].map((f) => (
-          <div key={f.title}
-            className="rounded-xl p-4"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-          >
-            <p className="text-lg font-medium mb-2" style={{ color: "var(--spark)" }}>{f.icon}</p>
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
-              {f.title}
-            </p>
-            <p className="text-xs" style={{ color: "#555555" }}>{f.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Bottom stats */}
-      <div
-        className="flex gap-12"
-        style={{ borderTop: "1px solid #1a1a1a", paddingTop: "2rem" }}
-      >
-        {[
-          { value: "< 1s", label: "Settlement time" },
-          { value: "FRS-1", label: "Open standard" },
-          { value: "MIT", label: "License" },
-        ].map((stat) => (
-          <div key={stat.label} className="text-center">
-            <p className="text-2xl font-medium mb-1"
-              style={{ color: "var(--spark)" }}>
-              {stat.value}
-            </p>
-            <p className="text-xs" style={{ color: "#555555" }}>
-              {stat.label}
-            </p>
-          </div>
-        ))}
-      </div>
-
-    {/* Footer */}
-      <div
-        className="w-full max-w-2xl flex items-center justify-between mt-12 pt-6"
-        style={{ borderTop: "1px solid #1a1a1a" }}
-      >
-        <p className="text-xs" style={{ color: "#333333" }}>
-          Flint · FRS-1 · MIT License
-        </p>
-        <div className="flex gap-4">
+        {/* Footer stats */}
+        <div className="flex gap-8 sm:gap-12 justify-center py-6"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           {[
-            { label: "Spec", path: "/spec" },
-            { label: "Business", path: "/business" },
-            { label: "Analytics", path: "/analytics" },
-            { label: "GitHub", path: "https://github.com/Argeneau12e/flint" },
-          ].map((link) => (
-            <button
-              key={link.label}
-              onClick={() => {
-                if (link.path.startsWith("http")) {
-                  window.open(link.path, "_blank");
-                } else {
-                  router.push(link.path);
-                }
-              }}
-              className="text-xs transition-all hover:opacity-70"
-              style={{ color: "#444444", background: "none", border: "none", cursor: "pointer" }}
-            >
-              {link.label}
-            </button>
+            { value: "< 1s", label: "Settlement time" },
+            { value: "FRS-1", label: "Open standard" },
+            { value: "MIT", label: "License" },
+          ].map((stat) => (
+            <div key={stat.label} className="text-center">
+              <p className="text-xl sm:text-2xl font-medium mb-1" style={{ color: "var(--spark)" }}>
+                {stat.value}
+              </p>
+              <p className="text-xs" style={{ color: "#666666" }}>{stat.label}</p>
+            </div>
           ))}
         </div>
-      </div>
 
+        {/* Footer links */}
+        <div className="flex items-center justify-between mt-6 pt-4"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <p className="text-xs" style={{ color: "#333333" }}>
+            Flint · FRS-1 · MIT License
+          </p>
+          <div className="flex gap-4">
+            {[
+              { label: "Spec", path: "/spec" },
+              { label: "Business", path: "/business" },
+              { label: "Analytics", path: "/analytics" },
+              { label: "GitHub", path: "https://github.com/Argeneau12e/flint" },
+            ].map((link) => (
+              <button
+                key={link.label}
+                onClick={() => {
+                  if (link.path.startsWith("http")) {
+                    window.open(link.path, "_blank");
+                  } else {
+                    router.push(link.path);
+                  }
+                }}
+                className="text-xs transition-smooth hover:opacity-70"
+                style={{ color: "#444444", background: "none", border: "none", cursor: "pointer" }}
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+      </div>
     </main>
   );
 }

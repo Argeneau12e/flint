@@ -1,17 +1,10 @@
 "use client";
 
-declare global {
-  interface Window {
-    solana?: {
-      connect: () => Promise<void>;
-      publicKey: { toString: () => string };
-      signAndSendTransaction: (tx: unknown) => Promise<{ signature: string }>;
-    };
-  }
-}
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Logo from "@/components/logo";
+import FlintLoader from "@/components/flint-loader";
+import { getSolanaProvider, WALLET_NOT_FOUND_MSG } from "@/lib/wallet";
 
 interface Invoice {
   id: string;
@@ -26,6 +19,7 @@ interface Invoice {
   condition?: string;
   escrowAddress?: string;
 }
+
 export default function PayPage() {
   const params = useParams();
   const id = params.id as string;
@@ -52,7 +46,7 @@ export default function PayPage() {
           }
         }
       } catch {
-        console.error("Failed to fetch invoice");
+        // silent
       } finally {
         setLoading(false);
       }
@@ -60,7 +54,14 @@ export default function PayPage() {
 
     fetchInvoice();
 
+    let pollCount = 0;
+    const maxPolls = 10;
     const interval = setInterval(async () => {
+      if (pollCount >= maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+      pollCount++;
       try {
         const res = await fetch(`/api/invoice/status?id=${id}`);
         const data = await res.json();
@@ -73,9 +74,9 @@ export default function PayPage() {
           }
         }
       } catch {
-        console.error("Polling error");
+        // silent
       }
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [id]);
@@ -84,18 +85,48 @@ export default function PayPage() {
     setError("");
     setPaying(true);
     try {
-      if (!window.solana) {
-        setError("No Solana wallet found. Please install Phantom wallet.");
+      const provider = getSolanaProvider();
+      if (!provider) {
+        setError(WALLET_NOT_FOUND_MSG);
         setPaying(false);
         return;
       }
-      await window.solana.connect();
+
+      await provider.connect();
+
+      const pubkey = provider.publicKey?.toString();
+      if (!pubkey) {
+        setError("Could not read your wallet address. Please reconnect.");
+        setPaying(false);
+        return;
+      }
+
+      const { Transaction, Connection, PublicKey, clusterApiUrl } = await import("@solana/web3.js");
+      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+      // Check balance before attempting — catches "wrong network" and "no funds" early
+      let balance = 0;
+      try {
+        balance = await connection.getBalance(new PublicKey(pubkey));
+      } catch {
+        setError("Could not reach Solana Devnet. Check your internet connection and try again.");
+        setPaying(false);
+        return;
+      }
+
+      if (balance < 5000) {
+        setError(
+          "Your wallet has no Devnet SOL. Go to faucet.solana.com, paste your wallet address, and request some test SOL — then try again. Also make sure Phantom is set to Devnet (Settings → Developer Settings → Change Network)."
+        );
+        setPaying(false);
+        return;
+      }
+
+      // Build the transaction via the API
       const res = await fetch(`/api/pay/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          account: window.solana.publicKey.toString(),
-        }),
+        body: JSON.stringify({ account: pubkey }),
       });
       const data = await res.json();
       if (data.error) {
@@ -103,32 +134,52 @@ export default function PayPage() {
         setPaying(false);
         return;
       }
-      const transaction = data.transaction;
-      const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
-      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-      const tx = Transaction.from(Buffer.from(transaction, "base64"));
-      const { signature } = await window.solana.signAndSendTransaction(tx);
-      console.log("Transaction signature:", signature);
+
+      const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
+
+      // Sign locally, then send — gives us real error messages instead of "Unexpected error"
+      let signature: string;
+      try {
+        const signedTx = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signedTx.serialize());
+      } catch (walletErr) {
+        const msg = walletErr instanceof Error ? walletErr.message : String(walletErr);
+        if (msg.toLowerCase().includes("rejected") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("user denied")) {
+          setError("You cancelled the transaction.");
+        } else if (msg.toLowerCase().includes("unexpected")) {
+          setError("Phantom returned 'Unexpected error' — this almost always means Phantom is set to Mainnet, not Devnet. Open Phantom → Settings → Developer Settings → Change Network → Devnet.");
+        } else {
+          setError(`Wallet error: ${msg.slice(0, 200)}`);
+        }
+        setPaying(false);
+        return;
+      }
+
+      // Confirm on-chain
       try {
         await connection.confirmTransaction(signature, "confirmed");
       } catch {
-        console.log("Confirmation timeout — transaction likely succeeded");
+        // Timeout is OK — the transaction likely landed, we just couldn't confirm in time
       }
 
+      // Record the receipt
       await fetch(`/api/receipt/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          txSignature: signature,
-          payerWallet: window.solana.publicKey.toString(),
-        }),
+        body: JSON.stringify({ txSignature: signature, payerWallet: pubkey }),
       });
 
       setTxSig(signature);
       setPaid(true);
     } catch (err) {
-      console.error(err);
-      setError("Payment failed. Please try again.");
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("insufficient") || msg.includes("0x1")) {
+        setError("Not enough SOL for this payment. Visit faucet.solana.com to get Devnet test SOL.");
+      } else if (msg.toLowerCase().includes("blockhash")) {
+        setError("Transaction expired (blockhash too old). Please try again.");
+      } else {
+        setError(`Payment failed: ${msg.slice(0, 200)}`);
+      }
     } finally {
       setPaying(false);
     }
@@ -139,21 +190,24 @@ export default function PayPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p style={{ color: "#888888" }}>Loading payment request...</p>
+        <FlintLoader message="Loading payment request..." />
       </main>
     );
   }
 
   if (!invoice) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
+      <main className="min-h-screen flex items-center justify-center px-6">
         <div className="text-center">
-          <p className="text-xl mb-2" style={{ color: "var(--chalk)" }}>
+          <p className="text-xl mb-5" style={{ color: "var(--chalk)" }}>
             Payment request not found
           </p>
-          <a href="/" style={{ color: "var(--spark)", fontSize: "14px" }}>
-            Back to Flint
-          </a>
+          <button onClick={() => window.location.href = "/"} className="back-btn mx-auto">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>Back to Flint</span>
+          </button>
         </div>
       </main>
     );
@@ -161,10 +215,10 @@ export default function PayPage() {
 
   if (paid) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6 py-12">
+      <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
         <div className="max-w-sm w-full">
           <div className="text-center mb-8">
-            <div className="verified-badge-lg animate-scale-in mx-auto mb-4">
+            <div className="verified-badge-lg animate-scale-in mx-auto mb-5">
               ✓
             </div>
             <h1 className="text-2xl font-medium mb-1" style={{ color: "#4ade80" }}>
@@ -175,10 +229,8 @@ export default function PayPage() {
             </p>
           </div>
 
-          <div
-            className="rounded-2xl p-6 mb-4 flex flex-col gap-3"
-            style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-          >
+          <div className="rounded-2xl p-6 mb-5 flex flex-col gap-3"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
               <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
@@ -187,32 +239,21 @@ export default function PayPage() {
             </div>
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Invoice</p>
-              <p className="text-sm" style={{ color: "var(--chalk)" }}>
-                {invoice?.title}
-              </p>
+              <p className="text-sm" style={{ color: "var(--chalk)" }}>{invoice?.title}</p>
             </div>
             <div className="flex justify-between">
               <p className="text-sm" style={{ color: "#555555" }}>Network</p>
-              <p className="text-sm" style={{ color: "#888888" }}>
-                Solana Devnet
-              </p>
+              <p className="text-sm" style={{ color: "#888888" }}>Solana Devnet</p>
             </div>
             <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}>
-              <p className="text-xs mb-2" style={{ color: "#555555" }}>
-                Transaction Signature
-              </p>
-              <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>
-                {txSig}
-              </p>
+              <p className="text-xs mb-2" style={{ color: "#555555" }}>Transaction Signature</p>
+              <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>{txSig}</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => window.open(
-                `https://explorer.solana.com/tx/${txSig}?cluster=devnet`,
-                "_blank"
-              )}
+              onClick={() => window.open(`https://explorer.solana.com/tx/${txSig}?cluster=devnet`, "_blank")}
               className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
               style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
             >
@@ -221,7 +262,7 @@ export default function PayPage() {
             <button
               onClick={() => window.open(`/verify/${txSig}`, "_blank")}
               className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: "#0a1a0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+              style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}
             >
               Share Verified Receipt
             </button>
@@ -231,13 +272,13 @@ export default function PayPage() {
                 window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
               }}
               className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: "#0a1f0a", border: "1px solid #1a3a1a", color: "#4ade80" }}
+              style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", color: "#4ade80" }}
             >
               Share via WhatsApp
             </button>
           </div>
 
-          <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
+          <p className="text-center text-xs mt-8" style={{ color: "#333333" }}>
             Powered by Flint · Secured by Solana
           </p>
         </div>
@@ -246,132 +287,65 @@ export default function PayPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
       <div className="max-w-sm w-full">
 
-        {/* Flint branding */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-            <polygon
-              points="32,6 54,18 54,46 32,58 10,46 10,18"
-              stroke="white"
-              strokeWidth="2.5"
-              fill="none"
-            />
-            <polyline
-              points="48,8 60,8 60,20"
-              stroke="#FF6B2B"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-          </svg>
-          <span
-            className="text-sm font-medium tracking-widest"
-            style={{ color: "#888888" }}
-          >
-            FLINT
-          </span>
+        <div className="flex items-center justify-center mb-8">
+          <Logo size={32} />
         </div>
 
-        {/* Payment card */}
-        <div
-          className="rounded-2xl p-8 mb-4"
-          style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-        >
-          <p className="text-xs mb-1" style={{ color: "#555555" }}>
+        <div className="glass-medium rounded-2xl p-6 sm:p-8 mb-4">
+          <p className="text-xs mb-1" style={{ color: "#555555", letterSpacing: "0.1em" }}>
             PAYMENT REQUEST
           </p>
-          <h1
-            className="text-xl font-medium mb-6"
-            style={{ color: "var(--chalk)" }}
-          >
+          <h1 className="text-xl font-medium mb-6" style={{ color: "var(--chalk)" }}>
             {invoice.title}
           </h1>
 
-          {/* Amount */}
-          <div
-            className="flex items-center justify-center py-8 mb-6 rounded-2xl"
-            style={{ background: "#0f0f0f" }}
-          >
-            <span
-              className="text-5xl font-medium"
-              style={{ color: "var(--spark)" }}
-            >
+          <div className="glass-light flex items-center justify-center py-8 mb-6 rounded-xl">
+            <span className="text-5xl font-medium" style={{ color: "var(--spark)" }}>
               {invoice.amount}
             </span>
-            <span
-              className="text-xl ml-3 mt-2"
-              style={{ color: "#888888" }}
-            >
+            <span className="text-xl ml-3 mt-2" style={{ color: "#888888" }}>
               {invoice.token}
             </span>
           </div>
 
-          {/* Details */}
           <div className="flex flex-col gap-3 mb-6">
             {invoice.memo && (
               <div className="flex justify-between">
-                <p className="text-sm" style={{ color: "#555555" }}>
-                  Memo
-                </p>
-                <p className="text-sm" style={{ color: "var(--chalk)" }}>
-                  {invoice.memo}
-                </p>
+                <p className="text-sm" style={{ color: "#555555" }}>Memo</p>
+                <p className="text-sm" style={{ color: "var(--chalk)" }}>{invoice.memo}</p>
               </div>
             )}
             {invoice.condition && (
-              <div
-                className="px-4 py-3 rounded-xl"
-                style={{ background: "#1a1500", border: "1px solid #3a3000" }}
-              >
-                <p className="text-xs font-medium mb-1" style={{ color: "#FFB800" }}>
-                  CONDITION
-                </p>
-                <p className="text-sm" style={{ color: "#FFB800" }}>
-                  {invoice.condition}
-                </p>
+              <div className="px-4 py-3 rounded-xl"
+                style={{ background: "#1a1500", border: "1px solid #3a3000" }}>
+                <p className="text-xs font-medium mb-1" style={{ color: "#FFB800" }}>CONDITION</p>
+                <p className="text-sm" style={{ color: "#FFB800" }}>{invoice.condition}</p>
               </div>
             )}
-            
             <div className="flex justify-between">
-              <p className="text-sm" style={{ color: "#555555" }}>
-                To
-              </p>
+              <p className="text-sm" style={{ color: "#555555" }}>To</p>
               <p className="text-sm font-mono" style={{ color: "var(--chalk)" }}>
-                {invoice.recipientWallet.slice(0, 4)}...
-                {invoice.recipientWallet.slice(-4)}
+                {invoice.recipientWallet.slice(0, 4)}...{invoice.recipientWallet.slice(-4)}
               </p>
             </div>
             <div className="flex justify-between">
-              <p className="text-sm" style={{ color: "#555555" }}>
-                Network
-              </p>
-              <p className="text-sm" style={{ color: "#888888" }}>
-                Solana Devnet
-              </p>
+              <p className="text-sm" style={{ color: "#555555" }}>Network</p>
+              <p className="text-sm" style={{ color: "#888888" }}>Solana Devnet</p>
             </div>
           </div>
 
           {isExpired ? (
-            <div
-              className="w-full py-4 rounded-xl text-center font-medium"
-              style={{ background: "#1a0a0a", color: "#ff6b6b" }}
-            >
+            <div className="w-full py-4 rounded-xl text-center font-medium"
+              style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
               This payment request has expired
             </div>
           ) : escrowed ? (
-            <div
-              className="flex flex-col gap-3"
-            >
-              <div
-                className="w-full py-4 rounded-xl text-center"
-                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}
-              >
+            <div className="flex flex-col gap-3">
+              <div className="w-full py-4 rounded-xl text-center"
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}>
                 Funds held in escrow
               </div>
               <p className="text-xs text-center font-mono" style={{ color: "#555555" }}>
@@ -380,26 +354,23 @@ export default function PayPage() {
             </div>
           ) : invoice.condition ? (
             <div className="flex flex-col gap-3">
-              <button
-                onClick={handlePay}
-                disabled={paying}
-                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: "var(--spark)" }}
-              >
+              <button onClick={handlePay} disabled={paying}
+                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
                 {paying ? "Confirming..." : `Pay ${invoice.amount} ${invoice.token}`}
               </button>
               <button
                 onClick={async () => {
-                  if (!window.solana) return;
+                  const provider = getSolanaProvider();
+                  if (!provider) return;
                   setPaying(true);
                   try {
-                    await window.solana.connect();
+                    await provider.connect();
                     const res = await fetch("/api/escrow", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         invoiceId: id,
-                        payerAddress: window.solana.publicKey.toString(),
+                        payerAddress: provider.publicKey?.toString(),
                         action: "fund",
                       }),
                     });
@@ -408,40 +379,34 @@ export default function PayPage() {
                       const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
                       const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
                       const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
-                      const { signature } = await window.solana.signAndSendTransaction(tx);
+                      const signedTx = await provider.signTransaction(tx);
+                      const signature = await connection.sendRawTransaction(signedTx.serialize());
                       try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
                       setEscrowAddress(data.escrowAddress);
                       setEscrowed(true);
                     }
-                  } catch (err) {
-                    console.error(err);
+                  } catch {
+                    // silent
                   } finally {
                     setPaying(false);
                   }
                 }}
                 disabled={paying}
                 className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}
-              >
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}>
                 {paying ? "Processing..." : "Hold in Escrow Until Condition Met"}
               </button>
             </div>
           ) : (
-            <button
-              onClick={handlePay}
-              disabled={paying}
-              className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-              style={{ background: "var(--spark)" }}
-            >
+            <button onClick={handlePay} disabled={paying}
+              className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 liquid-btn">
               {paying ? "Confirming payment..." : `Pay ${invoice.amount} ${invoice.token}`}
             </button>
           )}
 
           {error && (
-            <p
-              className="text-sm mt-3 px-4 py-3 rounded-xl"
-              style={{ background: "#1a0a0a", color: "#ff6b6b" }}
-            >
+            <p className="text-sm mt-4 px-4 py-3 rounded-xl"
+              style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
               {error}
             </p>
           )}

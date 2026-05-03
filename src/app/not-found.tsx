@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Logo from "@/components/logo";
 
 export default function NotFound() {
   const router = useRouter();
@@ -12,16 +13,7 @@ export default function NotFound() {
           className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8"
           style={{ background: "#111111", border: "1px solid #1f1f1f" }}
         >
-          <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
-            <polygon points="32,6 54,18 54,46 32,58 10,46 10,18"
-              stroke="white" strokeWidth="2.5" fill="none" />
-            <polyline points="48,8 60,8 60,20"
-              stroke="#FF6B2B" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <rect x="24" y="24" width="6" height="20" rx="2" fill="white" />
-            <rect x="30" y="24" width="14" height="6" rx="2" fill="white" />
-            <rect x="30" y="34" width="10" height="5" rx="2" fill="white" />
-          </svg>
+          <img src="/flint-icon-192.png" width="40" height="40" alt="Flint" style={{ borderRadius: "8px" }} />
         </div>
         <p
           className="text-6xl font-medium mb-4"

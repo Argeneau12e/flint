@@ -34,7 +34,7 @@ export default function AnalyticsPage() {
   }, []);
 
   const statCard = (label: string, value: string | number, sub?: string, color?: string) => (
-    <div className="rounded-xl p-5" style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+    <div className="glass-light rounded-xl p-5">
       <p className="text-xs mb-2" style={{ color: "#555555" }}>{label}</p>
       <p className="text-2xl font-medium" style={{ color: color || "var(--spark)" }}>{value}</p>
       {sub && <p className="text-xs mt-1" style={{ color: "#444444" }}>{sub}</p>}
@@ -117,8 +117,7 @@ export default function AnalyticsPage() {
                 ].map((f) => (
                   <div
                     key={f.label}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl"
-                    style={{ background: "#0f0f0f", border: "1px solid #1a1a1a" }}
+                    className="glass-medium flex items-center justify-between px-4 py-3 rounded-xl"
                   >
                     <p className="text-sm" style={{ color: "#888888" }}>{f.label}</p>
                     <p className="text-sm font-medium" style={{ color: "var(--spark)" }}>{f.value}</p>
@@ -128,9 +127,8 @@ export default function AnalyticsPage() {
             </div>
 
             {data.recentPaid.length > 0 && (
-              <div
-                className="rounded-2xl overflow-hidden mb-6"
-                style={{ border: "1px solid #1f1f1f" }}
+              <div   
+                className="glass-medium rounded-2xl overflow-hidden"
               >
                 <div
                   className="px-6 py-4"
@@ -164,8 +162,7 @@ export default function AnalyticsPage() {
             )}
 
             <div
-              className="rounded-2xl p-6"
-              style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+              className="glass-medium rounded-2xl p-6"
             >
               <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Protocol Info

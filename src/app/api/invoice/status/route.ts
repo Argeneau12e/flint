@@ -24,11 +24,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+    const connection = new Connection(
+      "https://api.devnet.solana.com",
+      {
+        commitment: "confirmed",
+        httpHeaders: { "Content-Type": "application/json" },
+        disableRetryOnRateLimit: true,
+      }
+    );
     const recipient = new PublicKey(invoice.recipientWallet);
     const expectedLamports = Math.round(invoice.amount * LAMPORTS_PER_SOL);
 
-    const signatures = await connection.getSignaturesForAddress(recipient, { limit: 20 });
+    const signatures = await connection.getSignaturesForAddress(recipient, { limit: 10 });
 
     for (const sigInfo of signatures) {
       if (sigInfo.err) continue;
