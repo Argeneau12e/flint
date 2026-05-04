@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "tweetnacl": "^1.0.3",
     "@coral-xyz/anchor": "^0.32.1",
     "@lightprotocol/compressed-token": "^0.23.3",
     "@lightprotocol/stateless.js": "^0.23.3",

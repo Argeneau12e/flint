@@ -53,26 +53,124 @@ export function isInsidePhantomBrowser(): boolean {
   return !!phantom?.connect;
 }
 
-/**
- * Generates the Phantom universal link to open a URL inside Phantom's
- * in-app browser on mobile. Once open, window.phantom.solana IS available.
- *
- * Format: https://phantom.app/ul/browse/{encodedUrl}?ref={encodedRef}
- */
-export function getPhantomDeepLink(targetUrl: string): string {
-  const encoded = encodeURIComponent(targetUrl);
-  const ref = encodeURIComponent(
-    typeof window !== "undefined" ? window.location.origin : "https://flint.pay"
-  );
-  return `https://phantom.app/ul/browse/${encoded}?ref=${ref}`;
-}
-
-/**
- * Generates the Solflare mobile deep link to open a URL in Solflare's browser.
- */
-export function getSolflareDeepLink(targetUrl: string): string {
-  return `https://solflare.com/ul/browse/${encodeURIComponent(targetUrl)}`;
-}
-
 export const WALLET_NOT_FOUND_MSG =
-  "No Solana wallet found. On desktop: install Phantom or Solflare. On mobile: use the button below to open this page inside your wallet app.";
+  "No Solana wallet found. On desktop: install Phantom or Solflare.";
+
+// ─── Inline Base58 (no extra package needed) ─────────────────────────────────
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+export function b58Encode(bytes: Uint8Array): string {
+  let leadingZeros = 0;
+  for (const b of bytes) { if (b !== 0) break; leadingZeros++; }
+  let n = 0n;
+  for (const b of bytes) n = (n << 8n) | BigInt(b);
+  let s = "";
+  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; }
+  return "1".repeat(leadingZeros) + s;
+}
+
+export function b58Decode(str: string): Uint8Array {
+  let n = 0n;
+  for (const c of str) {
+    const i = B58.indexOf(c);
+    if (i < 0) throw new Error("Invalid base58 character: " + c);
+    n = n * 58n + BigInt(i);
+  }
+  const hex = n === 0n ? "" : n.toString(16).padStart(Math.ceil(n.toString(16).length / 2) * 2, "0");
+  const bytes: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+  const leadingZeros = str.match(/^1*/)?.[0].length ?? 0;
+  return new Uint8Array([...Array(leadingZeros).fill(0), ...bytes]);
+}
+
+// ─── Phantom / Solflare Mobile Deeplink Connect Protocol ─────────────────────
+//
+// Flow:
+//  1. App generates an ephemeral Curve25519 keypair (dApp keypair)
+//  2. App stores the secret key in sessionStorage, redirects to wallet connect URL
+//  3. User approves in their wallet app
+//  4. Wallet redirects back to app URL with encrypted response params
+//  5. App decrypts response → extracts wallet public key → connected!
+//
+// This works in any regular mobile browser — no in-app wallet browser needed.
+
+/**
+ * Generates an ephemeral Curve25519 keypair for the deeplink connect handshake.
+ * Returns base58-encoded public and secret keys.
+ */
+export async function generateDappKeypair(): Promise<{ publicKey: string; secretKey: string }> {
+  // tweetnacl is a transitive dep of @solana/web3.js — always available after npm install
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nacl = ((await import("tweetnacl")) as any).default ?? (await import("tweetnacl"));
+  const kp = nacl.box.keyPair();
+  return {
+    publicKey: b58Encode(kp.publicKey),
+    secretKey: b58Encode(kp.secretKey),
+  };
+}
+
+/**
+ * Builds the Phantom mobile deeplink connect URL.
+ * After user approves, Phantom redirects to redirectUrl with:
+ *   phantom_encryption_public_key, nonce, data
+ */
+export function buildPhantomConnectUrl(
+  dappPublicKey: string,
+  redirectUrl: string,
+  appUrl: string
+): string {
+  const params = new URLSearchParams({
+    app_url: appUrl,
+    dapp_encryption_public_key: dappPublicKey,
+    redirect_link: redirectUrl,
+    cluster: "devnet",
+  });
+  return `https://phantom.app/ul/v1/connect?${params.toString()}`;
+}
+
+/**
+ * Builds the Solflare mobile deeplink connect URL.
+ * After user approves, Solflare redirects to redirectUrl with:
+ *   solflare_encryption_public_key, nonce, data
+ */
+export function buildSolflareConnectUrl(
+  dappPublicKey: string,
+  redirectUrl: string,
+  appUrl: string
+): string {
+  const params = new URLSearchParams({
+    app_url: appUrl,
+    dapp_encryption_public_key: dappPublicKey,
+    redirect_link: redirectUrl,
+    cluster: "devnet",
+  });
+  return `https://solflare.com/ul/v1/connect?${params.toString()}`;
+}
+
+/**
+ * Decrypts the wallet connect response from either Phantom or Solflare.
+ * walletEncPubKey — the wallet's ephemeral public key (base58)
+ * nonce           — the NaCl nonce (base58)
+ * data            — the encrypted payload (base58)
+ * dappSecretKey   — the dApp's ephemeral secret key stored before redirect (base58)
+ *
+ * Returns { public_key, session } on success, null on failure.
+ */
+export async function decryptWalletConnectResponse(
+  walletEncPubKey: string,
+  nonce: string,
+  data: string,
+  dappSecretKey: string
+): Promise<{ public_key: string; session: string } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nacl = ((await import("tweetnacl")) as any).default ?? (await import("tweetnacl"));
+  try {
+    const shared = nacl.box.before(b58Decode(walletEncPubKey), b58Decode(dappSecretKey));
+    const plain = nacl.box.open.after(b58Decode(data), b58Decode(nonce), shared);
+    if (!plain) return null;
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    return null;
+  }
+}

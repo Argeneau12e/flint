@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
-import { getSolanaProvider, WALLET_NOT_FOUND_MSG } from "@/lib/wallet";
+import {
+  getSolanaProvider,
+  WALLET_NOT_FOUND_MSG,
+  isMobileBrowser,
+  isInsidePhantomBrowser,
+  generateDappKeypair,
+  buildPhantomConnectUrl,
+  buildSolflareConnectUrl,
+  decryptWalletConnectResponse,
+} from "@/lib/wallet";
 
 interface Invoice {
   id: string;
@@ -35,8 +44,111 @@ export default function DashboardPage() {
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false); // decrypting wallet callback
+  const [mobileMode, setMobileMode] = useState(false); // mobile without injected wallet
   const [error, setError] = useState("");
 
+  const fetchDashboard = useCallback(async (address: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard?wallet=${address}`);
+      const data = await res.json();
+      setInvoices(data.invoices || []);
+      setStats(data.stats);
+    } catch {
+      setError("Failed to load dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // On mount: handle wallet callback params OR restore session OR detect mobile
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    // ── Phantom callback ───────────────────────────────────────────────────
+    const phantomPubKey = params.get("phantom_encryption_public_key");
+    // ── Solflare callback ──────────────────────────────────────────────────
+    const solflarePubKey = params.get("solflare_encryption_public_key");
+
+    const nonce = params.get("nonce");
+    const data = params.get("data");
+    const errorCode = params.get("errorCode");
+
+    // User denied connection in wallet app
+    if (errorCode) {
+      const msg = params.get("errorMessage") || "Connection was denied. Please try again.";
+      setError(msg);
+      window.history.replaceState({}, "", "/dashboard");
+      setMobileMode(true);
+      return;
+    }
+
+    // We got a wallet response — decrypt it
+    const walletPubKey = phantomPubKey || solflarePubKey;
+    if (walletPubKey && nonce && data) {
+      const dappSecretKey = sessionStorage.getItem("flint_dapp_secret");
+      if (dappSecretKey) {
+        setConnecting(true);
+        decryptWalletConnectResponse(walletPubKey, nonce, data, dappSecretKey)
+          .then((result) => {
+            if (result?.public_key) {
+              sessionStorage.setItem("flint_wallet", result.public_key);
+              if (result.session) sessionStorage.setItem("flint_session", result.session);
+              sessionStorage.removeItem("flint_dapp_secret");
+              setWallet(result.public_key);
+              setConnected(true);
+              fetchDashboard(result.public_key);
+            } else {
+              setError("Could not verify wallet response. Please try again.");
+              setMobileMode(true);
+            }
+          })
+          .catch(() => {
+            setError("Connection failed. Please try again.");
+            setMobileMode(true);
+          })
+          .finally(() => {
+            setConnecting(false);
+            window.history.replaceState({}, "", "/dashboard");
+          });
+      } else {
+        // No secret key found — session expired, clean up and ask again
+        window.history.replaceState({}, "", "/dashboard");
+        setMobileMode(isMobileBrowser() && !isInsidePhantomBrowser());
+      }
+      return;
+    }
+
+    // ── Restore previously connected mobile wallet ──────────────────────────
+    const cachedWallet = sessionStorage.getItem("flint_wallet");
+    if (cachedWallet) {
+      setWallet(cachedWallet);
+      setConnected(true);
+      fetchDashboard(cachedWallet);
+      return;
+    }
+
+    // ── Desktop / Phantom in-app browser: try injected provider ───────────
+    if (!isMobileBrowser() || isInsidePhantomBrowser()) {
+      const provider = getSolanaProvider();
+      if (provider?.publicKey) {
+        const address = provider.publicKey.toString();
+        setWallet(address);
+        setConnected(true);
+        fetchDashboard(address);
+      }
+      // else: desktop user needs to click "Connect Wallet"
+      return;
+    }
+
+    // ── Regular mobile browser: use deeplink connect ───────────────────────
+    setMobileMode(true);
+  }, [fetchDashboard]);
+
+  // Desktop injected-wallet connect
   const connectWallet = async () => {
     setError("");
     const provider = getSolanaProvider();
@@ -56,17 +168,31 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchDashboard = async (address: string) => {
-    setLoading(true);
+  // Mobile: initiate Phantom deeplink connect
+  const connectWithPhantom = async () => {
+    setError("");
     try {
-      const res = await fetch(`/api/dashboard?wallet=${address}`);
-      const data = await res.json();
-      setInvoices(data.invoices || []);
-      setStats(data.stats);
+      const { publicKey, secretKey } = await generateDappKeypair();
+      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      const redirectUrl = window.location.origin + "/dashboard";
+      const appUrl = window.location.origin;
+      window.location.href = buildPhantomConnectUrl(publicKey, redirectUrl, appUrl);
     } catch {
-      setError("Failed to load dashboard.");
-    } finally {
-      setLoading(false);
+      setError("Could not start Phantom connection. Please try again.");
+    }
+  };
+
+  // Mobile: initiate Solflare deeplink connect
+  const connectWithSolflare = async () => {
+    setError("");
+    try {
+      const { publicKey, secretKey } = await generateDappKeypair();
+      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      const redirectUrl = window.location.origin + "/dashboard";
+      const appUrl = window.location.origin;
+      window.location.href = buildSolflareConnectUrl(publicKey, redirectUrl, appUrl);
+    } catch {
+      setError("Could not start Solflare connection. Please try again.");
     }
   };
 
@@ -89,17 +215,6 @@ export default function DashboardPage() {
     if (Date.now() > invoice.expiresAt) return "Expired";
     return "Pending";
   };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const provider = getSolanaProvider();
-    if (provider?.publicKey) {
-      const address = provider.publicKey.toString();
-      setWallet(address);
-      setConnected(true);
-      fetchDashboard(address);
-    }
-  }, []);
 
   return (
     <main className="min-h-screen px-5 sm:px-6 py-10 sm:py-14">
@@ -141,8 +256,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Decrypting wallet callback — brief loading state */}
+        {connecting && (
+          <div className="flex items-center justify-center py-24">
+            <FlintLoader message="Connecting wallet..." />
+          </div>
+        )}
+
         {/* Not connected */}
-        {!connected && (
+        {!connecting && !connected && (
           <div className="glass-light rounded-2xl p-10 sm:p-14 text-center">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
@@ -159,12 +281,41 @@ export default function DashboardPage() {
             <p className="text-xs mb-8" style={{ color: "#555555" }}>
               Works with Phantom, Solflare, Backpack, and other Solana wallets
             </p>
-            <button
-              onClick={connectWallet}
-              className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
-            >
-              Connect Wallet
-            </button>
+
+            {mobileMode ? (
+              /* ── Mobile: deeplink connect — no in-app browser required ── */
+              <div className="flex flex-col gap-3">
+                <p className="text-xs mb-1" style={{ color: "#666666" }}>
+                  Tap below — you&apos;ll approve in your wallet app, then return here connected.
+                </p>
+                <button
+                  onClick={connectWithPhantom}
+                  className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
+                >
+                  Connect with Phantom
+                </button>
+                <button
+                  onClick={connectWithSolflare}
+                  className="px-8 py-3.5 rounded-xl font-medium transition-all hover:opacity-90"
+                  style={{
+                    background: "rgba(255,184,0,0.1)",
+                    border: "1px solid rgba(255,184,0,0.25)",
+                    color: "#FFB800",
+                  }}
+                >
+                  Connect with Solflare
+                </button>
+              </div>
+            ) : (
+              /* ── Desktop: injected wallet ── */
+              <button
+                onClick={connectWallet}
+                className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
+              >
+                Connect Wallet
+              </button>
+            )}
+
             {error && (
               <p className="text-sm mt-5 px-4 py-3 rounded-xl inline-block"
                 style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
@@ -174,7 +325,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* Loading dashboard data */}
         {connected && loading && (
           <div className="flex items-center justify-center py-24">
             <FlintLoader message="Loading your dashboard..." />
