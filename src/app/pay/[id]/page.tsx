@@ -1,0 +1,461 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Logo from "@/components/logo";
+import FlintLoader from "@/components/flint-loader";
+import { getSolanaProvider, WALLET_NOT_FOUND_MSG, isMobileBrowser, isInsidePhantomBrowser, getPhantomDeepLink, getSolflareDeepLink } from "@/lib/wallet";
+
+interface Invoice {
+  id: string;
+  title: string;
+  amount: number;
+  token: string;
+  memo: string;
+  recipientWallet: string;
+  createdAt: number;
+  expiresAt: number;
+  status: string;
+  condition?: string;
+  escrowAddress?: string;
+}
+
+export default function PayPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [txSig, setTxSig] = useState("");
+  const [escrowMode, setEscrowMode] = useState(false);
+  const [escrowed, setEscrowed] = useState(false);
+  const [escrowAddress, setEscrowAddress] = useState("");
+  const [error, setError] = useState("");
+  const [mobileNoWallet, setMobileNoWallet] = useState(false);
+
+  // Detect on mount: mobile browser with no injected wallet
+  useEffect(() => {
+    if (isMobileBrowser() && !isInsidePhantomBrowser()) {
+      setMobileNoWallet(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        const res = await fetch(`/api/invoice/status?id=${id}`);
+        const data = await res.json();
+        if (data.invoice) {
+          setInvoice(data.invoice);
+          if (data.status === "paid") {
+            setTxSig(data.invoice.txSignature || "");
+            setPaid(true);
+          }
+        }
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoice();
+
+    let pollCount = 0;
+    const maxPolls = 10;
+    const interval = setInterval(async () => {
+      if (pollCount >= maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+      pollCount++;
+      try {
+        const res = await fetch(`/api/invoice/status?id=${id}`);
+        const data = await res.json();
+        if (data.invoice) {
+          setInvoice(data.invoice);
+          if (data.status === "paid") {
+            setTxSig(data.invoice.txSignature || "");
+            setPaid(true);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        // silent
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [id]);
+
+  const handlePay = async () => {
+    setError("");
+    setPaying(true);
+    try {
+      const provider = getSolanaProvider();
+      if (!provider) {
+        setError(WALLET_NOT_FOUND_MSG);
+        setPaying(false);
+        return;
+      }
+
+      await provider.connect();
+
+      const pubkey = provider.publicKey?.toString();
+      if (!pubkey) {
+        setError("Could not read your wallet address. Please reconnect.");
+        setPaying(false);
+        return;
+      }
+
+      const { Transaction, Connection, PublicKey, clusterApiUrl } = await import("@solana/web3.js");
+      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+      // Check balance before attempting — catches "wrong network" and "no funds" early
+      let balance = 0;
+      try {
+        balance = await connection.getBalance(new PublicKey(pubkey));
+      } catch {
+        setError("Could not reach Solana Devnet. Check your internet connection and try again.");
+        setPaying(false);
+        return;
+      }
+
+      if (balance < 5000) {
+        setError(
+          "Your wallet has no Devnet SOL. Go to faucet.solana.com, paste your wallet address, and request some test SOL — then try again. Also make sure Phantom is set to Devnet (Settings → Developer Settings → Change Network)."
+        );
+        setPaying(false);
+        return;
+      }
+
+      // Build the transaction via the API
+      const res = await fetch(`/api/pay/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account: pubkey }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        setPaying(false);
+        return;
+      }
+
+      const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
+
+      // Sign locally, then send — gives us real error messages instead of "Unexpected error"
+      let signature: string;
+      try {
+        const signedTx = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signedTx.serialize());
+      } catch (walletErr) {
+        const msg = walletErr instanceof Error ? walletErr.message : String(walletErr);
+        if (msg.toLowerCase().includes("rejected") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("user denied")) {
+          setError("You cancelled the transaction.");
+        } else if (msg.toLowerCase().includes("unexpected")) {
+          setError("Phantom returned 'Unexpected error' — this almost always means Phantom is set to Mainnet, not Devnet. Open Phantom → Settings → Developer Settings → Change Network → Devnet.");
+        } else {
+          setError(`Wallet error: ${msg.slice(0, 200)}`);
+        }
+        setPaying(false);
+        return;
+      }
+
+      // Confirm on-chain
+      try {
+        await connection.confirmTransaction(signature, "confirmed");
+      } catch {
+        // Timeout is OK — the transaction likely landed, we just couldn't confirm in time
+      }
+
+      // Record the receipt
+      await fetch(`/api/receipt/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txSignature: signature, payerWallet: pubkey }),
+      });
+
+      setTxSig(signature);
+      setPaid(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("insufficient") || msg.includes("0x1")) {
+        setError("Not enough SOL for this payment. Visit faucet.solana.com to get Devnet test SOL.");
+      } else if (msg.toLowerCase().includes("blockhash")) {
+        setError("Transaction expired (blockhash too old). Please try again.");
+      } else {
+        setError(`Payment failed: ${msg.slice(0, 200)}`);
+      }
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const isExpired = invoice ? Date.now() > invoice.expiresAt : false;
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <FlintLoader message="Loading payment request..." />
+      </main>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6">
+        <div className="text-center">
+          <p className="text-xl mb-5" style={{ color: "var(--chalk)" }}>
+            Payment request not found
+          </p>
+          <button onClick={() => window.location.href = "/"} className="back-btn mx-auto">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>Back to Flint</span>
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (paid) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
+        <div className="max-w-sm w-full">
+          <div className="text-center mb-8">
+            <div className="verified-badge-lg animate-scale-in mx-auto mb-5">
+              ✓
+            </div>
+            <h1 className="text-2xl font-medium mb-1" style={{ color: "#4ade80" }}>
+              Payment Confirmed
+            </h1>
+            <p className="text-sm" style={{ color: "#888888" }}>
+              On-chain receipt generated
+            </p>
+          </div>
+
+          <div className="rounded-2xl p-6 mb-5 flex flex-col gap-3"
+            style={{ background: "#111111", border: "1px solid #1f1f1f" }}>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
+              <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
+                {invoice?.amount} {invoice?.token}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Invoice</p>
+              <p className="text-sm" style={{ color: "var(--chalk)" }}>{invoice?.title}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Network</p>
+              <p className="text-sm" style={{ color: "#888888" }}>Solana Devnet</p>
+            </div>
+            <div style={{ borderTop: "1px solid #1f1f1f", paddingTop: "12px" }}>
+              <p className="text-xs mb-2" style={{ color: "#555555" }}>Transaction Signature</p>
+              <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>{txSig}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => window.open(`https://explorer.solana.com/tx/${txSig}?cluster=devnet`, "_blank")}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
+            >
+              View on Solana Explorer
+            </button>
+            <button
+              onClick={() => window.open(`/verify/${txSig}`, "_blank")}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}
+            >
+              Share Verified Receipt
+            </button>
+            <button
+              onClick={() => {
+                const msg = `Payment confirmed on Solana. Verify here: ${window.location.origin}/verify/${txSig}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+              }}
+              className="w-full py-3 rounded-2xl text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", color: "#4ade80" }}
+            >
+              Share via WhatsApp
+            </button>
+          </div>
+
+          <p className="text-center text-xs mt-8" style={{ color: "#333333" }}>
+            Powered by Flint · Secured by Solana
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
+      <div className="max-w-sm w-full">
+
+        <div className="flex items-center justify-center mb-8">
+          <Logo size={32} />
+        </div>
+
+        <div className="glass-medium rounded-2xl p-6 sm:p-8 mb-4">
+          <p className="text-xs mb-1" style={{ color: "#555555", letterSpacing: "0.1em" }}>
+            PAYMENT REQUEST
+          </p>
+          <h1 className="text-xl font-medium mb-6" style={{ color: "var(--chalk)" }}>
+            {invoice.title}
+          </h1>
+
+          <div className="glass-light flex items-center justify-center py-8 mb-6 rounded-xl">
+            <span className="text-5xl font-medium" style={{ color: "var(--spark)" }}>
+              {invoice.amount}
+            </span>
+            <span className="text-xl ml-3 mt-2" style={{ color: "#888888" }}>
+              {invoice.token}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3 mb-6">
+            {invoice.memo && (
+              <div className="flex justify-between">
+                <p className="text-sm" style={{ color: "#555555" }}>Memo</p>
+                <p className="text-sm" style={{ color: "var(--chalk)" }}>{invoice.memo}</p>
+              </div>
+            )}
+            {invoice.condition && (
+              <div className="px-4 py-3 rounded-xl"
+                style={{ background: "#1a1500", border: "1px solid #3a3000" }}>
+                <p className="text-xs font-medium mb-1" style={{ color: "#FFB800" }}>CONDITION</p>
+                <p className="text-sm" style={{ color: "#FFB800" }}>{invoice.condition}</p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>To</p>
+              <p className="text-sm font-mono" style={{ color: "var(--chalk)" }}>
+                {invoice.recipientWallet.slice(0, 4)}...{invoice.recipientWallet.slice(-4)}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Network</p>
+              <p className="text-sm" style={{ color: "#888888" }}>Solana Devnet</p>
+            </div>
+          </div>
+
+          {isExpired ? (
+            <div className="w-full py-4 rounded-xl text-center font-medium"
+              style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
+              This payment request has expired
+            </div>
+
+          ) : mobileNoWallet ? (
+            /* ── Mobile: no wallet injected → show deep links ── */
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-center mb-1" style={{ color: "#888888" }}>
+                Open this page inside your wallet app to pay
+              </p>
+              <a
+                href={getPhantomDeepLink(typeof window !== "undefined" ? window.location.href : "")}
+                className="w-full py-4 rounded-xl font-medium text-white text-center transition-all hover:opacity-90 liquid-btn"
+                style={{ display: "block", textDecoration: "none", minHeight: "54px", lineHeight: "22px" }}
+              >
+                Open in Phantom
+              </a>
+              <a
+                href={getSolflareDeepLink(typeof window !== "undefined" ? window.location.href : "")}
+                className="w-full py-3 rounded-xl font-medium text-center transition-all hover:opacity-90"
+                style={{
+                  display: "block", textDecoration: "none", minHeight: "48px", lineHeight: "22px",
+                  background: "rgba(255,184,0,0.1)", border: "1px solid rgba(255,184,0,0.25)", color: "#FFB800",
+                }}
+              >
+                Open in Solflare
+              </a>
+              <p className="text-xs text-center" style={{ color: "#444444" }}>
+                Or scan the QR code on the invoice page using your wallet&apos;s camera
+              </p>
+            </div>
+
+          ) : escrowed ? (
+            <div className="flex flex-col gap-3">
+              <div className="w-full py-4 rounded-xl text-center"
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}>
+                Funds held in escrow
+              </div>
+              <p className="text-xs text-center font-mono" style={{ color: "#555555" }}>
+                {escrowAddress.slice(0, 8)}...{escrowAddress.slice(-8)}
+              </p>
+            </div>
+
+          ) : invoice.condition ? (
+            <div className="flex flex-col gap-3">
+              <button onClick={handlePay} disabled={paying}
+                className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 liquid-btn">
+                {paying ? "Confirming..." : `Pay ${invoice.amount} ${invoice.token}`}
+              </button>
+              <button
+                onClick={async () => {
+                  const provider = getSolanaProvider();
+                  if (!provider) return;
+                  setPaying(true);
+                  try {
+                    await provider.connect();
+                    const res = await fetch("/api/escrow", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        invoiceId: id,
+                        payerAddress: provider.publicKey?.toString(),
+                        action: "fund",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.transaction) {
+                      const { Transaction, Connection, clusterApiUrl } = await import("@solana/web3.js");
+                      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+                      const tx = Transaction.from(Buffer.from(data.transaction, "base64"));
+                      const signedTx = await provider.signTransaction(tx);
+                      const signature = await connection.sendRawTransaction(signedTx.serialize());
+                      try { await connection.confirmTransaction(signature, "confirmed"); } catch {}
+                      setEscrowAddress(data.escrowAddress);
+                      setEscrowed(true);
+                    }
+                  } catch {
+                    // silent
+                  } finally {
+                    setPaying(false);
+                  }
+                }}
+                disabled={paying}
+                className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: "#1a1500", border: "1px solid #3a3000", color: "#FFB800" }}>
+                {paying ? "Processing..." : "Hold in Escrow Until Condition Met"}
+              </button>
+            </div>
+
+          ) : (
+            <button onClick={handlePay} disabled={paying}
+              className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 liquid-btn">
+              {paying ? "Confirming payment..." : `Pay ${invoice.amount} ${invoice.token}`}
+            </button>
+          )}
+
+          {error && (
+            <p className="text-sm mt-4 px-4 py-3 rounded-xl"
+              style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <p className="text-center text-xs" style={{ color: "#333333" }}>
+          Powered by Flint · Secured by Solana
+        </p>
+
+      </div>
+    </main>
+  );
+}

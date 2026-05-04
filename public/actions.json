@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "pathPattern": "/api/pay/**",
+      "apiPath": "/api/pay/**"
+    },
+    {
+      "pathPattern": "/pay/**",
+      "apiPath": "/api/pay/**"
+    },
+    {
+      "pathPattern": "/to/**",
+      "apiPath": "/api/pay/**"
+    }
+  ]
+}

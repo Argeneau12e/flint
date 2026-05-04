@@ -1,0 +1,203 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Logo from "@/components/logo";
+import FlintLoader from "@/components/flint-loader";
+
+interface ReceiptData {
+  id: string;
+  title: string;
+  amount: number;
+  token: string;
+  memo: string;
+  recipientWallet: string;
+  payerWallet: string;
+  txSignature: string;
+  paidAt: number;
+  network: string;
+  explorerUrl: string;
+}
+
+export default function VerifyPage() {
+  const params = useParams();
+  const router = useRouter();
+  const signature = params.signature as string;
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    const findReceipt = async () => {
+      try {
+        const res = await fetch(`/api/verify?signature=${signature}`);
+        if (res.status === 404) {
+          setNotFound(true);
+          return;
+        }
+        const data = await res.json();
+        if (data.txSignature) {
+          setReceipt(data);
+        } else {
+          setNotFound(true);
+        }
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    findReceipt();
+  }, [signature]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <FlintLoader message="Verifying payment..." />
+      </main>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-5 sm:px-6">
+        <div className="text-center max-w-sm">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"
+            style={{ background: "#1a0a0a", border: "1px solid #3a0a0a" }}
+          >
+            ?
+          </div>
+          <h1 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
+            Receipt not found
+          </h1>
+          <p className="text-sm mb-8" style={{ color: "#888888" }}>
+            This transaction signature was not found in the Flint receipt registry.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="px-6 py-3 rounded-xl text-white text-sm font-medium liquid-btn"
+          >
+            Back to Flint
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center px-5 sm:px-6 py-12">
+      <div className="max-w-sm w-full">
+
+        <div className="flex items-center justify-center mb-8">
+          <Logo size={28} />
+        </div>
+
+        <div className="text-center mb-8">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl animate-scale-in"
+            style={{ background: "rgba(74,222,128,0.1)", border: "2px solid #4ade80" }}
+          >
+            ✓
+          </div>
+          <h1 className="text-2xl font-medium mb-1" style={{ color: "#4ade80" }}>
+            Payment Verified
+          </h1>
+          <p className="text-sm" style={{ color: "#888888" }}>
+            This payment is confirmed on the Solana blockchain
+          </p>
+        </div>
+
+        <div className="glass-medium rounded-2xl p-6 mb-5">
+          <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Receipt Details
+          </p>
+          <div className="flex flex-col gap-3">
+            {receipt?.title && (
+              <div className="flex justify-between">
+                <p className="text-sm" style={{ color: "#555555" }}>Invoice</p>
+                <p className="text-sm" style={{ color: "var(--chalk)" }}>{receipt.title}</p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Amount</p>
+              <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
+                {receipt?.amount} {receipt?.token}
+              </p>
+            </div>
+            {receipt?.memo && (
+              <div className="flex justify-between">
+                <p className="text-sm" style={{ color: "#555555" }}>Memo</p>
+                <p className="text-sm" style={{ color: "var(--chalk)" }}>{receipt.memo}</p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>From</p>
+              <p className="text-sm font-mono" style={{ color: "var(--chalk)" }}>
+                {receipt?.payerWallet?.slice(0, 4)}...{receipt?.payerWallet?.slice(-4)}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>To</p>
+              <p className="text-sm font-mono" style={{ color: "var(--chalk)" }}>
+                {receipt?.recipientWallet?.slice(0, 4)}...{receipt?.recipientWallet?.slice(-4)}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Date</p>
+              <p className="text-sm" style={{ color: "var(--chalk)" }}>
+                {receipt?.paidAt ? new Date(receipt.paidAt).toLocaleDateString("en-US", {
+                  month: "short", day: "numeric", year: "numeric"
+                }) : "Unknown"}
+              </p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm" style={{ color: "#555555" }}>Network</p>
+              <p className="text-sm" style={{ color: "#4ade80" }}>Solana Devnet</p>
+            </div>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
+              <p className="text-xs mb-2" style={{ color: "#555555" }}>Transaction Signature</p>
+              <p className="text-xs font-mono break-all" style={{ color: "var(--spark)" }}>
+                {receipt?.txSignature}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => window.open(
+              `https://explorer.solana.com/tx/${receipt?.txSignature}?cluster=devnet`,
+              "_blank"
+            )}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "#111111", border: "1px solid #1f1f1f", color: "var(--chalk)" }}
+          >
+            View on Solana Explorer
+          </button>
+          <button
+            onClick={() => {
+              const msg = `Payment verified on Solana! ${receipt?.amount} ${receipt?.token} — check receipt: ${window.location.href}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}
+          >
+            Share Receipt
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#888888" }}
+          >
+            Back to Flint
+          </button>
+        </div>
+
+        <p className="text-center text-xs mt-8" style={{ color: "#333333" }}>
+          Powered by Flint · Verified on Solana
+        </p>
+      </div>
+    </main>
+  );
+}
