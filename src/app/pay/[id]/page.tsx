@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Logo from "@/components/logo";
 import FlintLoader from "@/components/flint-loader";
-import { getSolanaProvider, WALLET_NOT_FOUND_MSG } from "@/lib/wallet";
+import { getSolanaProvider, WALLET_NOT_FOUND_MSG, isMobileBrowser, isInsidePhantomBrowser, getPhantomDeepLink, getSolflareDeepLink } from "@/lib/wallet";
 
 interface Invoice {
   id: string;
@@ -32,6 +32,14 @@ export default function PayPage() {
   const [escrowed, setEscrowed] = useState(false);
   const [escrowAddress, setEscrowAddress] = useState("");
   const [error, setError] = useState("");
+  const [mobileNoWallet, setMobileNoWallet] = useState(false);
+
+  // Detect on mount: mobile browser with no injected wallet
+  useEffect(() => {
+    if (isMobileBrowser() && !isInsidePhantomBrowser()) {
+      setMobileNoWallet(true);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -342,6 +350,35 @@ export default function PayPage() {
               style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
               This payment request has expired
             </div>
+
+          ) : mobileNoWallet ? (
+            /* ── Mobile: no wallet injected → show deep links ── */
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-center mb-1" style={{ color: "#888888" }}>
+                Open this page inside your wallet app to pay
+              </p>
+              <a
+                href={getPhantomDeepLink(typeof window !== "undefined" ? window.location.href : "")}
+                className="w-full py-4 rounded-xl font-medium text-white text-center transition-all hover:opacity-90 liquid-btn"
+                style={{ display: "block", textDecoration: "none", minHeight: "54px", lineHeight: "22px" }}
+              >
+                Open in Phantom
+              </a>
+              <a
+                href={getSolflareDeepLink(typeof window !== "undefined" ? window.location.href : "")}
+                className="w-full py-3 rounded-xl font-medium text-center transition-all hover:opacity-90"
+                style={{
+                  display: "block", textDecoration: "none", minHeight: "48px", lineHeight: "22px",
+                  background: "rgba(255,184,0,0.1)", border: "1px solid rgba(255,184,0,0.25)", color: "#FFB800",
+                }}
+              >
+                Open in Solflare
+              </a>
+              <p className="text-xs text-center" style={{ color: "#444444" }}>
+                Or scan the QR code on the invoice page using your wallet&apos;s camera
+              </p>
+            </div>
+
           ) : escrowed ? (
             <div className="flex flex-col gap-3">
               <div className="w-full py-4 rounded-xl text-center"
@@ -352,6 +389,7 @@ export default function PayPage() {
                 {escrowAddress.slice(0, 8)}...{escrowAddress.slice(-8)}
               </p>
             </div>
+
           ) : invoice.condition ? (
             <div className="flex flex-col gap-3">
               <button onClick={handlePay} disabled={paying}
@@ -397,6 +435,7 @@ export default function PayPage() {
                 {paying ? "Processing..." : "Hold in Escrow Until Condition Met"}
               </button>
             </div>
+
           ) : (
             <button onClick={handlePay} disabled={paying}
               className="w-full py-4 rounded-xl font-medium text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 liquid-btn">
