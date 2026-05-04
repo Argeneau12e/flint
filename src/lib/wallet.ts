@@ -13,7 +13,7 @@ export function getSolanaProvider(): SolanaProvider | null {
 
   const w = window as unknown as Record<string, unknown>;
 
-  // Phantom (desktop + Phantom mobile browser)
+  // Phantom (desktop + Phantom mobile in-app browser)
   const phantom = (w.phantom as Record<string, unknown>)?.solana as SolanaProvider | undefined;
   if (phantom?.connect) return phantom;
 
@@ -36,5 +36,43 @@ export function getSolanaProvider(): SolanaProvider | null {
   return null;
 }
 
+/** True when running in a mobile browser (not a desktop). */
+export function isMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+}
+
+/**
+ * Returns true if the page is already running inside Phantom's in-app browser,
+ * meaning window.phantom is injected and we can use the wallet normally.
+ */
+export function isInsidePhantomBrowser(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as Record<string, unknown>;
+  const phantom = (w.phantom as Record<string, unknown>)?.solana as SolanaProvider | undefined;
+  return !!phantom?.connect;
+}
+
+/**
+ * Generates the Phantom universal link to open a URL inside Phantom's
+ * in-app browser on mobile. Once open, window.phantom.solana IS available.
+ *
+ * Format: https://phantom.app/ul/browse/{encodedUrl}?ref={encodedRef}
+ */
+export function getPhantomDeepLink(targetUrl: string): string {
+  const encoded = encodeURIComponent(targetUrl);
+  const ref = encodeURIComponent(
+    typeof window !== "undefined" ? window.location.origin : "https://flint.pay"
+  );
+  return `https://phantom.app/ul/browse/${encoded}?ref=${ref}`;
+}
+
+/**
+ * Generates the Solflare mobile deep link to open a URL in Solflare's browser.
+ */
+export function getSolflareDeepLink(targetUrl: string): string {
+  return `https://solflare.com/ul/browse/${encodeURIComponent(targetUrl)}`;
+}
+
 export const WALLET_NOT_FOUND_MSG =
-  "No Solana wallet found. Please install Phantom, Solflare, or Backpack.";
+  "No Solana wallet found. On desktop: install Phantom or Solflare. On mobile: use the button below to open this page inside your wallet app.";
