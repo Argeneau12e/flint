@@ -88,60 +88,43 @@ export default function DashboardPage() {
     }
 
     // We got a wallet response — decrypt it
-    console.log("Callback params:", {
-      phantomPubKey,
-      solflarePubKey,
-      nonce,
-      data,
-      errorCode,
-    });
     const walletPubKey = phantomPubKey || solflarePubKey;
     if (walletPubKey && nonce && data) {
-      const dappSecretKey = sessionStorage.getItem("flint_dapp_secret");
-      console.log("Decrypt attempt:", {
-        hasWalletPubKey: !!walletPubKey,
-        hasNonce: !!nonce,
-        hasData: !!data,
-        hasSecretKey: !!dappSecretKey,
-      });
+      const dappSecretKey = localStorage.getItem("flint_dapp_secret");
+      console.log("Wallet callback:", { hasSecretKey: !!dappSecretKey });
       if (dappSecretKey) {
         setConnecting(true);
         decryptWalletConnectResponse(walletPubKey, nonce, data, dappSecretKey)
           .then((result) => {
-            console.log("Decrypt result:", result);
+            console.log("Decrypted wallet:", result?.public_key);
             if (result?.public_key) {
-              sessionStorage.setItem("flint_wallet", result.public_key);
-              if (result.session) sessionStorage.setItem("flint_session", result.session);
-              sessionStorage.removeItem("flint_dapp_secret");
+              localStorage.setItem("flint_wallet", result.public_key);
+              localStorage.removeItem("flint_dapp_secret");
               setWallet(result.public_key);
               setConnected(true);
               fetchDashboard(result.public_key);
             } else {
-              console.error("No public_key in decrypt result");
-              setError("Could not verify wallet response. Please try again.");
-              setMobileMode(true);
+              setError("Could not verify wallet response.");
             }
           })
           .catch((err) => {
-            console.error("Decrypt error:", err);
-            setError("Connection failed. Please try again.");
-            setMobileMode(true);
+            console.error("Decrypt failed:", err);
+            setError("Connection failed.");
           })
           .finally(() => {
             setConnecting(false);
             window.history.replaceState({}, "", "/dashboard");
           });
       } else {
-        console.error("No dapp secret key found in sessionStorage");
-        // No secret key found — session expired, clean up and ask again
+        console.error("No secret key in localStorage");
+        setError("Session expired. Please try again.");
         window.history.replaceState({}, "", "/dashboard");
-        setMobileMode(isMobileBrowser() && !isInsidePhantomBrowser());
       }
       return;
     }
 
     // ── Restore previously connected mobile wallet ──────────────────────────
-    const cachedWallet = sessionStorage.getItem("flint_wallet");
+    const cachedWallet = localStorage.getItem("flint_wallet");
     if (cachedWallet) {
       setWallet(cachedWallet);
       setConnected(true);
@@ -206,10 +189,12 @@ export default function DashboardPage() {
     setError("");
     setConnectingInit(true);
     try {
+      const { publicKey, secretKey } = await generateDappKeypair();
+      // Use localStorage instead of sessionStorage (persists across app switches)
+      localStorage.setItem("flint_dapp_secret", secretKey);
       const redirectUrl = window.location.origin + "/dashboard";
       const appUrl = window.location.origin;
-      // Opens site in Phantom's in-app browser where wallet is injected
-      window.location.href = buildPhantomConnectUrl("", redirectUrl, appUrl);
+      window.location.href = buildPhantomConnectUrl(publicKey, redirectUrl, appUrl);
     } catch (err) {
       console.error("Phantom connect error:", err);
       setError("Could not start Phantom connection. Please try again.");
@@ -222,9 +207,11 @@ export default function DashboardPage() {
     setError("");
     setConnectingInit(true);
     try {
+      const { publicKey, secretKey } = await generateDappKeypair();
+      localStorage.setItem("flint_dapp_secret", secretKey);
       const redirectUrl = window.location.origin + "/dashboard";
-      // Opens site in Solflare's in-app browser where wallet is injected
-      window.location.href = buildSolflareConnectUrl("", redirectUrl, "");
+      const appUrl = window.location.origin;
+      window.location.href = buildSolflareConnectUrl(publicKey, redirectUrl, appUrl);
     } catch (err) {
       console.error("Solflare connect error:", err);
       setError("Could not start Solflare connection. Please try again.");
