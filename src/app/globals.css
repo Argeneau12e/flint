@@ -409,6 +409,24 @@ input[type=number]::-webkit-outer-spin-button {
   justify-content: center;
   margin-bottom: 14px;
   flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.liquid-glass:hover .feature-icon-wrap {
+  transform: scale(1.1);
+}
+
+/* ============================================
+   DEMO STEP ANIMATION
+   ============================================ */
+
+.demo-step {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.demo-step:hover {
+  transform: translateX(4px);
+  background: rgba(255,107,43,0.08) !important;
 }
 
 /* ============================================

@@ -112,8 +112,7 @@ export async function generateDappKeypair(): Promise<{ publicKey: string; secret
 
 /**
  * Builds the Phantom mobile deeplink connect URL.
- * After user approves, Phantom redirects to redirectUrl with:
- *   phantom_encryption_public_key, nonce, data
+ * Opens Phantom for approval, then redirects back to redirectUrl with wallet info.
  */
 export function buildPhantomConnectUrl(
   dappPublicKey: string,
@@ -131,8 +130,7 @@ export function buildPhantomConnectUrl(
 
 /**
  * Builds the Solflare mobile deeplink connect URL.
- * After user approves, Solflare redirects to redirectUrl with:
- *   solflare_encryption_public_key, nonce, data
+ * Opens Solflare for approval, then redirects back to redirectUrl with wallet info.
  */
 export function buildSolflareConnectUrl(
   dappPublicKey: string,
@@ -173,4 +171,28 @@ export async function decryptWalletConnectResponse(
   } catch {
     return null;
   }
+}
+
+// ─── Deep Link URL Builders (for pay page mobile flow) ───────────────────────
+//
+// These functions build the wallet-specific deep link URLs for mobile users
+// who don't have the wallet's in-app browser open.
+
+/**
+ * Builds the Phantom mobile deeplink for payment.
+ * After user approves, Phantom redirects back to the callbackUrl.
+ */
+export function getPhantomDeepLink(callbackUrl: string): string {
+  const params = new URLSearchParams({
+    redirectLink: callbackUrl,
+  });
+  return `https://phantom.app/ul/browse/${callbackUrl}?${params.toString()}`;
+}
+
+/**
+ * Builds the Solflare mobile deeplink for payment.
+ * After user approves, Solflare redirects back to the callbackUrl.
+ */
+export function getSolflareDeepLink(callbackUrl: string): string {
+  return `https://solflare.com/open-url?url=${encodeURIComponent(callbackUrl)}`;
 }

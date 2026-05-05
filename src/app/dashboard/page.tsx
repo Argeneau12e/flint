@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false); // decrypting wallet callback
+  const [connectingInit, setConnectingInit] = useState(false); // button click -> redirect
   const [mobileMode, setMobileMode] = useState(false); // mobile without injected wallet
   const [error, setError] = useState("");
 
@@ -89,41 +90,41 @@ export default function DashboardPage() {
     // We got a wallet response — decrypt it
     const walletPubKey = phantomPubKey || solflarePubKey;
     if (walletPubKey && nonce && data) {
-      const dappSecretKey = sessionStorage.getItem("flint_dapp_secret");
+      const dappSecretKey = localStorage.getItem("flint_dapp_secret");
+      console.log("Wallet callback:", { hasSecretKey: !!dappSecretKey });
       if (dappSecretKey) {
         setConnecting(true);
         decryptWalletConnectResponse(walletPubKey, nonce, data, dappSecretKey)
           .then((result) => {
+            console.log("Decrypted wallet:", result?.public_key);
             if (result?.public_key) {
-              sessionStorage.setItem("flint_wallet", result.public_key);
-              if (result.session) sessionStorage.setItem("flint_session", result.session);
-              sessionStorage.removeItem("flint_dapp_secret");
+              localStorage.setItem("flint_wallet", result.public_key);
+              localStorage.removeItem("flint_dapp_secret");
               setWallet(result.public_key);
               setConnected(true);
               fetchDashboard(result.public_key);
             } else {
-              setError("Could not verify wallet response. Please try again.");
-              setMobileMode(true);
+              setError("Could not verify wallet response.");
             }
           })
-          .catch(() => {
-            setError("Connection failed. Please try again.");
-            setMobileMode(true);
+          .catch((err) => {
+            console.error("Decrypt failed:", err);
+            setError("Connection failed.");
           })
           .finally(() => {
             setConnecting(false);
             window.history.replaceState({}, "", "/dashboard");
           });
       } else {
-        // No secret key found — session expired, clean up and ask again
+        console.error("No secret key in localStorage");
+        setError("Session expired. Please try again.");
         window.history.replaceState({}, "", "/dashboard");
-        setMobileMode(isMobileBrowser() && !isInsidePhantomBrowser());
       }
       return;
     }
 
     // ── Restore previously connected mobile wallet ──────────────────────────
-    const cachedWallet = sessionStorage.getItem("flint_wallet");
+    const cachedWallet = localStorage.getItem("flint_wallet");
     if (cachedWallet) {
       setWallet(cachedWallet);
       setConnected(true);
@@ -145,7 +146,22 @@ export default function DashboardPage() {
     }
 
     // ── Regular mobile browser: use deeplink connect ───────────────────────
-    setMobileMode(true);
+    // When user returns from Phantom/Solflare, wallet will be injected
+    // so we can connect automatically
+    if (isMobileBrowser() && !isInsidePhantomBrowser()) {
+      setMobileMode(true);
+      // Check if we just returned from wallet app (wallet now injected)
+      const provider = getSolanaProvider();
+      if (provider?.isConnected || provider?.publicKey) {
+        const address = provider.publicKey?.toString();
+        if (address) {
+          setWallet(address);
+          setConnected(true);
+          fetchDashboard(address);
+          return;
+        }
+      }
+    }
   }, [fetchDashboard]);
 
   // Desktop injected-wallet connect
@@ -171,28 +187,35 @@ export default function DashboardPage() {
   // Mobile: initiate Phantom deeplink connect
   const connectWithPhantom = async () => {
     setError("");
+    setConnectingInit(true);
     try {
       const { publicKey, secretKey } = await generateDappKeypair();
-      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      // Use localStorage instead of sessionStorage (persists across app switches)
+      localStorage.setItem("flint_dapp_secret", secretKey);
       const redirectUrl = window.location.origin + "/dashboard";
       const appUrl = window.location.origin;
       window.location.href = buildPhantomConnectUrl(publicKey, redirectUrl, appUrl);
-    } catch {
+    } catch (err) {
+      console.error("Phantom connect error:", err);
       setError("Could not start Phantom connection. Please try again.");
+      setConnectingInit(false);
     }
   };
 
   // Mobile: initiate Solflare deeplink connect
   const connectWithSolflare = async () => {
     setError("");
+    setConnectingInit(true);
     try {
       const { publicKey, secretKey } = await generateDappKeypair();
-      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      localStorage.setItem("flint_dapp_secret", secretKey);
       const redirectUrl = window.location.origin + "/dashboard";
       const appUrl = window.location.origin;
       window.location.href = buildSolflareConnectUrl(publicKey, redirectUrl, appUrl);
-    } catch {
+    } catch (err) {
+      console.error("Solflare connect error:", err);
       setError("Could not start Solflare connection. Please try again.");
+      setConnectingInit(false);
     }
   };
 
@@ -283,27 +306,25 @@ export default function DashboardPage() {
             </p>
 
             {mobileMode ? (
-              /* ── Mobile: deeplink connect — no in-app browser required ── */
               <div className="flex flex-col gap-3">
-                <p className="text-xs mb-1" style={{ color: "#666666" }}>
-                  Tap below — you&apos;ll approve in your wallet app, then return here connected.
-                </p>
                 <button
                   onClick={connectWithPhantom}
-                  className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
+                  disabled={connectingInit}
+                  className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn disabled:opacity-50"
                 >
-                  Connect with Phantom
+                  {connectingInit ? "Connecting..." : "Connect with Phantom"}
                 </button>
                 <button
                   onClick={connectWithSolflare}
-                  className="px-8 py-3.5 rounded-xl font-medium transition-all hover:opacity-90"
+                  disabled={connectingInit}
+                  className="px-8 py-3.5 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
                   style={{
                     background: "rgba(255,184,0,0.1)",
                     border: "1px solid rgba(255,184,0,0.25)",
                     color: "#FFB800",
                   }}
                 >
-                  Connect with Solflare
+                  {connectingInit ? "Connecting..." : "Connect with Solflare"}
                 </button>
               </div>
             ) : (
