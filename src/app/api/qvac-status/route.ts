@@ -33,8 +33,10 @@ export async function GET() {
     modelCached: true,
     timestamp: new Date().toISOString(),
   }, { 
-    headers: CORS,
-    // Security: Prevent caching of status endpoint
-    "Cache-Control": "no-store, no-cache, must-revalidate",
+    headers: {
+      ...CORS,
+      // Security: Prevent caching of status endpoint
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
   });
 }
