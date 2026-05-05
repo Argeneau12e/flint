@@ -110,8 +110,8 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative z-10 min-h-[88vh] flex flex-col items-center justify-center px-6 sm:px-10 text-center">
 
-        {/* Particles */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Particles - Desktop only (performance on mobile) */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden sm:block">
           {particles.map((p) => (
             <div key={p.id} className="absolute rounded-full animate-float"
               style={{
@@ -139,17 +139,17 @@ export default function LandingPage() {
             backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
             lineHeight: "1.1",
           }}>
-          Programmable Payments
+          The Open Payment Protocol
           <br />
           <span style={{ color: "#FF6B2B", WebkitTextFillColor: "#FF6B2B" }}>
-            Reimagined.
+            for Solana.
           </span>
         </h1>
 
         <p className="text-base sm:text-lg max-w-xl mx-auto mb-10 animate-slide-up anim-d2"
           style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
-          The open payment request protocol for Solana.
-          Human-shareable. Agent-executable.
+          Human-shareable payment requests.
+          Agent-executable by design.
           Built for the autonomous economy.
         </p>
 
@@ -174,10 +174,54 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* Animated Demo - Shows Flint flow */}
+        <div className="w-full max-w-3xl mx-auto mb-16 animate-slide-up anim-d4">
+          <div className="liquid-glass rounded-2xl p-6 sm:p-8">
+            <p className="text-xs mb-6 text-center" style={{ color: "#FF6B2B", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+              See it in action
+            </p>
+            <div className="flex flex-col items-center gap-4">
+              {/* Step 1: Create */}
+              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
+                <div className="step-number">1</div>
+                <div className="flex-1">
+                  <div className="h-3 rounded-full mb-2" style={{ background: "rgba(255,255,255,0.1)", width: "60%" }} />
+                  <div className="h-3 rounded-full" style={{ background: "rgba(255,255,255,0.05)", width: "40%" }} />
+                </div>
+                <div className="text-xs" style={{ color: "#FF6B2B" }}>Create</div>
+              </div>
+              {/* Arrow */}
+              <div className="animate-bounce" style={{ color: "#555555" }}>↓</div>
+              {/* Step 2: Share */}
+              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
+                <div className="step-number">2</div>
+                <div className="flex-1 flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(74,222,128,0.1)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg>
+                  </div>
+                  <div className="h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+                </div>
+                <div className="text-xs" style={{ color: "#4ade80" }}>Share</div>
+              </div>
+              {/* Arrow */}
+              <div className="animate-bounce" style={{ color: "#555555" }}>↓</div>
+              {/* Step 3: Get Paid */}
+              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
+                <div className="step-number">3</div>
+                <div className="flex-1 flex items-center gap-3">
+                  <div className="verified-badge">✓</div>
+                  <div className="h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+                </div>
+                <div className="text-xs" style={{ color: "#4ade80" }}>Paid</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Feature grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl w-full">
           {features.map((f) => (
-            <div key={f.title} className={`liquid-glass rounded-2xl p-6 text-left animate-slide-up ${f.delay}`}>
+            <div key={f.title} className={`liquid-glass rounded-2xl p-6 text-left animate-slide-up ${f.delay} transition-smooth hover:opacity-80 cursor-pointer`} style={{ minHeight: "140px" }}>
               <div className="feature-icon-wrap" style={{ background: f.bg }}>
                 <span style={{ color: f.color }}><f.Icon /></span>
               </div>
@@ -202,16 +246,31 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          {/* Connector line — desktop only */}
-          <div className="hidden sm:block absolute left-1/2 h-px" style={{ width: "60%", transform: "translateX(-50%)", background: "rgba(255,107,43,0.15)" }} />
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative">
-            {steps.map((s) => (
-              <div key={s.n} className="liquid-glass rounded-2xl p-6 flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {steps.map((s, idx) => (
+              <div key={s.n} className="liquid-glass rounded-2xl p-6 flex flex-col gap-4 relative">
+                {/* Connector arrow - desktop only */}
+                {idx < steps.length - 1 && (
+                  <div className="hidden sm:block absolute top-1/2 -right-3 transform -translate-y-1/2 z-10" style={{ color: "rgba(255,107,43,0.3)" }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                )}
                 <div className="step-number">{s.n}</div>
                 <div>
                   <h3 className="text-base font-medium mb-2" style={{ color: "var(--chalk)" }}>{s.title}</h3>
                   <p className="text-sm" style={{ color: "#888888", lineHeight: "1.6" }}>{s.desc}</p>
+                </div>
+                {/* Visual icon for each step */}
+                <div className="mt-2" style={{ color: "#FF6B2B" }}>
+                  {idx === 0 && (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  )}
+                  {idx === 1 && (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg>
+                  )}
+                  {idx === 2 && (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  )}
                 </div>
               </div>
             ))}
@@ -242,17 +301,26 @@ export default function LandingPage() {
       <section className="relative z-10 py-20 px-6 sm:px-10 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-medium mb-5" style={{ color: "var(--chalk)" }}>
-            Ready to get paid on Solana?
+            Create Your First Payment Request
           </h2>
           <p className="text-base sm:text-lg mb-8" style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
-            Create your first payment request in seconds. No account required.
+            No account required. No wallet setup for payers. Just share and get paid.
           </p>
           <button onClick={() => router.push("/create")}
             className="liquid-btn px-10 py-5 rounded-2xl font-medium text-lg focus-ring">
-            Start for Free
+            Get Started Now
           </button>
         </div>
       </section>
+
+      {/* Mobile Sticky CTA */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-4" style={{ background: "linear-gradient(to top, rgba(15,15,15,0.95), rgba(15,15,15,0.8))", backdropFilter: "blur(12px)" }}>
+        <button onClick={() => router.push("/create")}
+          className="w-full liquid-btn px-6 py-4 rounded-2xl font-medium text-base focus-ring shadow-lg"
+          style={{ boxShadow: "0 4px 24px rgba(255,107,43,0.3)" }}>
+          Create Payment Request
+        </button>
+      </div>
 
       {/* Footer */}
       <footer className="relative z-10 px-6 sm:px-10 py-8 max-w-6xl mx-auto"
