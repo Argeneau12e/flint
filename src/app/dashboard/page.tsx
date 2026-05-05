@@ -283,11 +283,7 @@ export default function DashboardPage() {
             </p>
 
             {mobileMode ? (
-              /* ── Mobile: deeplink connect — no in-app browser required ── */
               <div className="flex flex-col gap-3">
-                <p className="text-xs mb-1" style={{ color: "#666666" }}>
-                  Tap below — you&apos;ll approve in your wallet app, then return here connected.
-                </p>
                 <button
                   onClick={connectWithPhantom}
                   className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"

@@ -3,7 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
-import { getSolanaProvider, WALLET_NOT_FOUND_MSG } from "@/lib/wallet";
+import { 
+  getSolanaProvider, 
+  WALLET_NOT_FOUND_MSG,
+  isMobileBrowser,
+  isInsidePhantomBrowser,
+  generateDappKeypair,
+  buildPhantomConnectUrl,
+  buildSolflareConnectUrl,
+  decryptWalletConnectResponse,
+} from "@/lib/wallet";
 
 interface Template {
   id: string;
@@ -63,6 +72,32 @@ export default function TemplatesPage() {
     }
   };
 
+  const connectWithPhantom = async () => {
+    setError("");
+    try {
+      const { publicKey, secretKey } = await generateDappKeypair();
+      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      const redirectUrl = window.location.origin + "/templates";
+      const appUrl = window.location.origin;
+      window.location.href = buildPhantomConnectUrl(publicKey, redirectUrl, appUrl);
+    } catch {
+      setError("Could not start Phantom connection.");
+    }
+  };
+
+  const connectWithSolflare = async () => {
+    setError("");
+    try {
+      const { publicKey, secretKey } = await generateDappKeypair();
+      sessionStorage.setItem("flint_dapp_secret", secretKey);
+      const redirectUrl = window.location.origin + "/templates";
+      const appUrl = window.location.origin;
+      window.location.href = buildSolflareConnectUrl(publicKey, redirectUrl, appUrl);
+    } catch {
+      setError("Could not start Solflare connection.");
+    }
+  };
+
   const fetchTemplates = async (address: string) => {
     setLoading(true);
     try {
@@ -116,12 +151,60 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const provider = getSolanaProvider();
-    if (provider?.publicKey) {
-      const address = provider.publicKey.toString();
-      setWallet(address);
+
+    // Handle wallet callback from deeplink connect
+    const params = new URLSearchParams(window.location.search);
+    const phantomPubKey = params.get("phantom_encryption_public_key");
+    const solflarePubKey = params.get("solflare_encryption_public_key");
+    const nonce = params.get("nonce");
+    const data = params.get("data");
+    const errorCode = params.get("errorCode");
+
+    if (errorCode) {
+      setError(params.get("errorMessage") || "Connection denied.");
+      window.history.replaceState({}, "", "/templates");
+      return;
+    }
+
+    const walletPubKey = phantomPubKey || solflarePubKey;
+    if (walletPubKey && nonce && data) {
+      const dappSecretKey = sessionStorage.getItem("flint_dapp_secret");
+      if (dappSecretKey) {
+        decryptWalletConnectResponse(walletPubKey, nonce, data, dappSecretKey)
+          .then((result) => {
+            if (result?.public_key) {
+              sessionStorage.setItem("flint_wallet", result.public_key);
+              sessionStorage.removeItem("flint_dapp_secret");
+              setWallet(result.public_key);
+              setConnected(true);
+              fetchTemplates(result.public_key);
+            }
+          })
+          .finally(() => {
+            window.history.replaceState({}, "", "/templates");
+          });
+      }
+      return;
+    }
+
+    // Restore cached wallet
+    const cachedWallet = sessionStorage.getItem("flint_wallet");
+    if (cachedWallet) {
+      setWallet(cachedWallet);
       setConnected(true);
-      fetchTemplates(address);
+      fetchTemplates(cachedWallet);
+      return;
+    }
+
+    // Desktop / in-app browser: try injected provider
+    if (!isMobileBrowser() || isInsidePhantomBrowser()) {
+      const provider = getSolanaProvider();
+      if (provider?.publicKey) {
+        const address = provider.publicKey.toString();
+        setWallet(address);
+        setConnected(true);
+        fetchTemplates(address);
+      }
     }
   }, []);
 
@@ -155,31 +238,52 @@ export default function TemplatesPage() {
           )}
         </div>
 
-        {!connected && (
-          <div className="rounded-2xl p-12 text-center glass-light">
-            <p className="text-lg font-medium mb-2" style={{ color: "var(--chalk)" }}>
+        {!connected ? (
+          <div className="glass-light rounded-2xl p-10 text-center">
+            <h2 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
               Connect your wallet
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "#888888" }}>
+              View and manage your invoice templates
             </p>
-            <p className="text-sm mb-2" style={{ color: "#888888" }}>
-              To save and use templates
-            </p>
-            <p className="text-xs mb-8" style={{ color: "#555555" }}>
-              Works with Phantom, Solflare, Backpack, and other Solana wallets
-            </p>
-            <button
-              onClick={connectWallet}
-              className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
-            >
-              Connect Wallet
-            </button>
+            
+            {isMobileBrowser() && !isInsidePhantomBrowser() ? (
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={connectWithPhantom}
+                  className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
+                >
+                  Connect with Phantom
+                </button>
+                <button
+                  onClick={connectWithSolflare}
+                  className="px-8 py-3.5 rounded-xl font-medium transition-all hover:opacity-90"
+                  style={{
+                    background: "rgba(255,184,0,0.1)",
+                    border: "1px solid rgba(255,184,0,0.25)",
+                    color: "#FFB800",
+                  }}
+                >
+                  Connect with Solflare
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={connectWallet}
+                className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
+              >
+                Connect Wallet
+              </button>
+            )}
+            
             {error && (
               <p className="text-sm mt-5 px-4 py-3 rounded-xl inline-block"
-                style={{ background: "#1a0a0a", color: "#ff6b6b" }}>
+                style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
                 {error}
               </p>
             )}
           </div>
-        )}
+        ) : (
 
         {connected && showForm && (
           <div className="glass-medium rounded-2xl p-6 mb-6 flex flex-col gap-5">
