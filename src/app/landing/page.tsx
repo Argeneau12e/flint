@@ -128,7 +128,7 @@ export default function LandingPage() {
           style={{ background: "rgba(26,26,46,0.4)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
           <span className="text-xs" style={{ color: "#aaaaaa" }}>
-            Powered by Solana · FRS-1 Open Standard
+            Powered by QVAC + Solana · FRS-1 Open Standard
           </span>
         </div>
 
@@ -149,7 +149,7 @@ export default function LandingPage() {
         <p className="text-base sm:text-lg max-w-xl mx-auto mb-10 animate-slide-up anim-d2"
           style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
           Human-shareable payment requests.
-          Agent-executable by design.
+          Agent-executable by QVAC.
           Built for the autonomous economy.
         </p>
 

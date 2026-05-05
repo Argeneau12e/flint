@@ -89,8 +89,9 @@ function CreatePageInner() {
   };
 
   const tokens = [
-    { id: "USDC", label: "USDC", icon: "◎", desc: "USD Coin" },
-    { id: "SOL",  label: "SOL",  icon: "◉", desc: "Solana" },
+    { id: "USDC", label: "USDC",  icon: "💵", desc: "USD Coin" },
+    { id: "USDT", label: "USDT",  icon: "₮", desc: "Tether USD" },
+    { id: "SOL",  label: "SOL",   icon: "◎", desc: "Solana" },
   ];
 
   return (
