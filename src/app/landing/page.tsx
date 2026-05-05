@@ -174,50 +174,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Animated Demo - Shows Flint flow */}
-        <div className="w-full max-w-3xl mx-auto mb-16 animate-slide-up anim-d4">
-          <div className="liquid-glass rounded-2xl p-6 sm:p-8">
-            <p className="text-xs mb-6 text-center" style={{ color: "#FF6B2B", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-              See it in action
-            </p>
-            <div className="flex flex-col items-center gap-4">
-              {/* Step 1: Create */}
-              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
-                <div className="step-number">1</div>
-                <div className="flex-1">
-                  <div className="h-3 rounded-full mb-2" style={{ background: "rgba(255,255,255,0.1)", width: "60%" }} />
-                  <div className="h-3 rounded-full" style={{ background: "rgba(255,255,255,0.05)", width: "40%" }} />
-                </div>
-                <div className="text-xs" style={{ color: "#FF6B2B" }}>Create</div>
-              </div>
-              {/* Arrow */}
-              <div className="animate-bounce" style={{ color: "#555555" }}>↓</div>
-              {/* Step 2: Share */}
-              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
-                <div className="step-number">2</div>
-                <div className="flex-1 flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(74,222,128,0.1)" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg>
-                  </div>
-                  <div className="h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
-                </div>
-                <div className="text-xs" style={{ color: "#4ade80" }}>Share</div>
-              </div>
-              {/* Arrow */}
-              <div className="animate-bounce" style={{ color: "#555555" }}>↓</div>
-              {/* Step 3: Get Paid */}
-              <div className="demo-step w-full flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(15,15,15,0.5)" }}>
-                <div className="step-number">3</div>
-                <div className="flex-1 flex items-center gap-3">
-                  <div className="verified-badge">✓</div>
-                  <div className="h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
-                </div>
-                <div className="text-xs" style={{ color: "#4ade80" }}>Paid</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Feature grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl w-full">
           {features.map((f) => (
