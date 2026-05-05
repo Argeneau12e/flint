@@ -111,41 +111,29 @@ export async function generateDappKeypair(): Promise<{ publicKey: string; secret
 }
 
 /**
- * Builds the Phantom mobile deeplink connect URL.
- * After user approves, Phantom redirects to redirectUrl with:
- *   phantom_encryption_public_key, nonce, data
+ * Builds the Phantom mobile deeplink URL.
+ * Opens the app directly in Phantom's in-app browser where wallet is injected.
  */
 export function buildPhantomConnectUrl(
   dappPublicKey: string,
   redirectUrl: string,
   appUrl: string
 ): string {
-  const params = new URLSearchParams({
-    app_url: appUrl,
-    dapp_encryption_public_key: dappPublicKey,
-    redirect_link: redirectUrl,
-    cluster: "devnet",
-  });
-  return `https://phantom.app/ul/v1/connect?${params.toString()}`;
+  // Simple browse deeplink - opens URL in Phantom browser with wallet injected
+  return `https://phantom.app/ul/browse/${encodeURIComponent(redirectUrl)}?${encodeURIComponent(appUrl)}`;
 }
 
 /**
- * Builds the Solflare mobile deeplink connect URL.
- * After user approves, Solflare redirects to redirectUrl with:
- *   solflare_encryption_public_key, nonce, data
+ * Builds the Solflare mobile deeplink URL.
+ * Opens the app directly in Solflare's in-app browser where wallet is injected.
  */
 export function buildSolflareConnectUrl(
   dappPublicKey: string,
   redirectUrl: string,
   appUrl: string
 ): string {
-  const params = new URLSearchParams({
-    app_url: appUrl,
-    dapp_encryption_public_key: dappPublicKey,
-    redirect_link: redirectUrl,
-    cluster: "devnet",
-  });
-  return `https://solflare.com/ul/v1/connect?${params.toString()}`;
+  // Simple browse deeplink - opens URL in Solflare browser with wallet injected
+  return `https://solflare.com/open-url?url=${encodeURIComponent(redirectUrl)}`;
 }
 
 /**
