@@ -174,3 +174,27 @@ export async function decryptWalletConnectResponse(
     return null;
   }
 }
+
+// ─── Deep Link URL Builders (for pay page mobile flow) ───────────────────────
+//
+// These functions build the wallet-specific deep link URLs for mobile users
+// who don't have the wallet's in-app browser open.
+
+/**
+ * Builds the Phantom mobile deeplink for payment.
+ * After user approves, Phantom redirects back to the callbackUrl.
+ */
+export function getPhantomDeepLink(callbackUrl: string): string {
+  const params = new URLSearchParams({
+    redirectLink: callbackUrl,
+  });
+  return `https://phantom.app/ul/browse/${callbackUrl}?${params.toString()}`;
+}
+
+/**
+ * Builds the Solflare mobile deeplink for payment.
+ * After user approves, Solflare redirects back to the callbackUrl.
+ */
+export function getSolflareDeepLink(callbackUrl: string): string {
+  return `https://solflare.com/open-url?url=${encodeURIComponent(callbackUrl)}`;
+}
