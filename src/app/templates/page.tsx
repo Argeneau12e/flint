@@ -283,9 +283,7 @@ export default function TemplatesPage() {
               </p>
             )}
           </div>
-        ) : (
-
-        {connected && showForm && (
+        ) : connected && showForm && (
           <div className="glass-medium rounded-2xl p-6 mb-6 flex flex-col gap-5">
             <h2 className="text-sm font-medium" style={{ color: "var(--chalk)" }}>New Template</h2>
             <div>
