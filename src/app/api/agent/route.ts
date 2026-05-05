@@ -119,7 +119,8 @@ Give your reasoning:`;
       stream: false,
     });
 
-    reasoning = response.text || "Invoice analysis complete";
+    // QVAC completion returns text directly when stream: false
+    reasoning = (response as any).text || "Invoice analysis complete";
     
     // Security: Unload model after use to free resources (optional, can keep cached)
     // await unloadModel({ modelId }); // Commented out - keep cached for performance
