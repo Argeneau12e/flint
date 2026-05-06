@@ -318,8 +318,19 @@ export default function DashboardPage() {
                       }}
                       title={`${userAccount.badgeTier.charAt(0).toUpperCase() + userAccount.badgeTier.slice(1)} tier - ${userAccount.points} points`}
                     >
-                      <svg className="w-3 h-3 text-black p-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      {/* Verified Badge SVG - X/Twitter/Instagram style */}
+                      <svg
+                        className="w-full h-full text-white p-[15%]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M8.5 12.5L11 15L15.5 10.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                   </>
