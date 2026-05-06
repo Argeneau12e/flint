@@ -130,7 +130,9 @@ export default function AnalyticsPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${stat.color}20` }}>
-                  <stat.icon size={20} style={{ color: stat.color }} />
+                  <span style={{ color: stat.color }}>
+                    <stat.icon size={20} />
+                  </span>
                 </div>
               </div>
               <p className="text-xs mb-1" style={{ color: "#666" }}>{stat.label}</p>
