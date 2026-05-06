@@ -65,7 +65,7 @@ export default function TestPage() {
         setResult(data);
       }
     } catch (err) {
-      setError("Network error: " + err.message);
+      setError("Network error: " + (err instanceof Error ? err.message : "Unknown error"));
     } finally {
       setLoading(false);
     }
