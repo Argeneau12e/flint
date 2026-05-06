@@ -234,6 +234,142 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="relative z-10 py-20 px-6 sm:px-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs mb-3" style={{ color: "#FF6B2B", letterSpacing: "0.15em", textTransform: "uppercase" }}>Simple, transparent pricing</p>
+            <h2 className="text-3xl sm:text-4xl font-medium mb-4" style={{ color: "var(--chalk)" }}>
+              Choose Your Plan
+            </h2>
+            <p className="text-base" style={{ color: "#aaaaaa", maxWidth: "600px", margin: "0 auto" }}>
+              No hidden fees. Upgrade or downgrade anytime.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+            {/* Free Tier */}
+            <div className="liquid-glass rounded-2xl p-8 flex flex-col">
+              <div className="mb-6">
+                <h3 className="text-xl font-medium mb-2" style={{ color: "#f7f7f5" }}>Free</h3>
+                <p className="text-sm" style={{ color: "#888" }}>Perfect for trying out Flint</p>
+              </div>
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-medium" style={{ color: "#FF6B2B" }}>$0</span>
+                  <span className="text-sm" style={{ color: "#666" }}>/month</span>
+                </div>
+                <p className="text-sm mt-2" style={{ color: "#888" }}>
+                  Transaction fee: <span className="font-medium" style={{ color: "#4ade80" }}>1%</span>
+                </p>
+              </div>
+              <div className="flex-1 space-y-3 mb-8">
+                {[
+                  "Unlimited invoices",
+                  "1% transaction fee",
+                  "Escrow protection",
+                  "Basic analytics",
+                  "Community support",
+                ].map((feature) => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="text-sm" style={{ color: "#aaa" }}>{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => router.push("/create")}
+                className="w-full py-4 rounded-xl font-medium transition-all glass-light">
+                Start Free
+              </button>
+            </div>
+
+            {/* Pro Tier */}
+            <div className="liquid-glass rounded-2xl p-8 flex flex-col relative ring-2 ring-[#FF6B2B]"
+              style={{ background: "rgba(255,107,43,0.08)" }}>
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <span className="px-4 py-1 rounded-full text-xs font-medium" style={{ background: "#FF6B2B", color: "#fff" }}>
+                  Most Popular
+                </span>
+              </div>
+              <div className="mb-6">
+                <h3 className="text-xl font-medium mb-2" style={{ color: "#f7f7f5" }}>Pro</h3>
+                <p className="text-sm" style={{ color: "#888" }}>For growing businesses</p>
+              </div>
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-medium" style={{ color: "#FF6B2B" }}>$9.99</span>
+                  <span className="text-sm" style={{ color: "#666" }}>/month</span>
+                </div>
+                <p className="text-sm mt-2" style={{ color: "#888" }}>
+                  Transaction fee: <span className="font-medium" style={{ color: "#4ade80" }}>0.5%</span>
+                </p>
+              </div>
+              <div className="flex-1 space-y-3 mb-8">
+                {[
+                  "Everything in Free",
+                  "0.5% transaction fee",
+                  "Priority support",
+                  "Advanced analytics",
+                  "Custom branding",
+                  "API access",
+                ].map((feature) => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="text-sm" style={{ color: "#aaa" }}>{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => router.push("/create")}
+                className="w-full py-4 rounded-xl font-medium transition-all liquid-btn">
+                Upgrade to Pro
+              </button>
+            </div>
+
+            {/* Business Tier */}
+            <div className="liquid-glass rounded-2xl p-8 flex flex-col">
+              <div className="mb-6">
+                <h3 className="text-xl font-medium mb-2" style={{ color: "#f7f7f5" }}>Business</h3>
+                <p className="text-sm" style={{ color: "#888" }}>For high-volume sellers</p>
+              </div>
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-medium" style={{ color: "#FF6B2B" }}>$49</span>
+                  <span className="text-sm" style={{ color: "#666" }}>/month</span>
+                </div>
+                <p className="text-sm mt-2" style={{ color: "#888" }}>
+                  Transaction fee: <span className="font-medium" style={{ color: "#4ade80" }}>0.25%</span>
+                </p>
+              </div>
+              <div className="flex-1 space-y-3 mb-8">
+                {[
+                  "Everything in Pro",
+                  "0.25% transaction fee",
+                  "Dedicated support",
+                  "Custom integrations",
+                  "Volume discounts",
+                  "White-label options",
+                ].map((feature) => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="text-sm" style={{ color: "#aaa" }}>{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => router.push("/create")}
+                className="w-full py-4 rounded-xl font-medium transition-all glass-light">
+                Contact Sales
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Trust strip */}
       <section className="relative z-10 py-12 px-6 sm:px-10">
         <div className="max-w-4xl mx-auto">
