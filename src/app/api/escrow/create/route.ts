@@ -53,11 +53,11 @@ export async function POST(req: NextRequest) {
     // Generate unique escrow ID
     const escrowId = `escrow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Calculate deadlines
-    const now = Math.floor(Date.now() / 1000);
-    const acceptanceDeadline = now + ESCROW_TIMEOUTS.ACCEPTANCE_TIMEOUT; // 7 days
-    const fundingDeadline = now + ESCROW_TIMEOUTS.FUNDING_TIMEOUT; // 3 days
-    const reviewDeadline = now + ESCROW_TIMEOUTS.REVIEW_TIMEOUT; // 7 days
+    // Calculate deadlines (in milliseconds for frontend compatibility)
+    const now = Date.now();
+    const acceptanceDeadline = now + (ESCROW_TIMEOUTS.ACCEPTANCE_TIMEOUT * 1000); // 7 days in ms
+    const fundingDeadline = now + (ESCROW_TIMEOUTS.FUNDING_TIMEOUT * 1000); // 3 days in ms
+    const reviewDeadline = now + (ESCROW_TIMEOUTS.REVIEW_TIMEOUT * 1000); // 7 days in ms
 
     // Create escrow record (to be stored in Supabase/on-chain)
     const escrowData = {

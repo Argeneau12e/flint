@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check deadline
-    const now = Math.floor(Date.now() / 1000);
+    // Check deadline (now in ms, deadline stored in ms)
+    const now = Date.now();
     if (escrow.funding_deadline && now > escrow.funding_deadline) {
       // Auto-cancel
       await supabase

@@ -112,7 +112,8 @@ export default function PayPage() {
   };
 
   const formatDeadline = (timestamp: number) => {
-    const diff = timestamp * 1000 - Date.now();
+    // Timestamp is now in milliseconds (not seconds)
+    const diff = timestamp - Date.now();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     if (days <= 0) return "Expired";
     if (days === 1) return "1 day left";
@@ -276,15 +277,21 @@ export default function PayPage() {
           )}
 
           {/* Action Button */}
-          {invoice.status === "pending_acceptance" && (
+          {(invoice.status === "pending_acceptance" || invoice.status === "draft") && (
             <button
               onClick={handleAccept}
               disabled={paying}
               className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 disabled:opacity-50 liquid-btn"
               style={{ fontSize: "15px", minHeight: "54px" }}
             >
-              {paying ? "Processing..." : walletConnected ? "Accept & Fund" : "Connect Wallet to Accept"}
+              {paying ? "Processing..." : walletConnected ? "Accept & Fund Escrow" : "Connect Wallet to Accept"}
             </button>
+          )}
+
+          {invoice.status === "draft" && (
+            <p className="text-xs text-center mt-3" style={{ color: "#888" }}>
+              This invoice is in draft status. Connect wallet to accept.
+            </p>
           )}
 
           {invoice.status === "accepted_waiting_funding" && walletConnected && (
