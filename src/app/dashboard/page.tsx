@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
+import UsernameSignup from "@/components/account/UsernameSignup";
+import { getUserByWallet, checkUsernameAvailable } from "@/lib/supabase";
+import { getBadgeTier } from "@/components/account/ReputationBadge";
 import {
   getSolanaProvider,
   WALLET_NOT_FOUND_MSG,
@@ -48,6 +51,12 @@ export default function DashboardPage() {
   const [connectingInit, setConnectingInit] = useState(false); // button click -> redirect
   const [mobileMode, setMobileMode] = useState(false); // mobile without injected wallet
   const [error, setError] = useState("");
+  
+  // Account system state
+  const [hasAccount, setHasAccount] = useState(false);
+  const [checkingAccount, setCheckingAccount] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [userAccount, setUserAccount] = useState<any>(null);
 
   const fetchDashboard = useCallback(async (address: string) => {
     setLoading(true);
@@ -60,6 +69,31 @@ export default function DashboardPage() {
       setError("Failed to load dashboard.");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Check if user has Supabase account
+  const checkUserAccount = useCallback(async (address: string) => {
+    setCheckingAccount(true);
+    try {
+      const user = await getUserByWallet(address);
+      if (user) {
+        setHasAccount(true);
+        setUserAccount({
+          username: user.username,
+          displayName: user.display_name || user.username,
+          badgeTier: user.reputation?.[0]?.badge_tier || getBadgeTier(user.reputation?.[0]?.points || 0),
+          points: user.reputation?.[0]?.points || 0,
+        });
+      } else {
+        setHasAccount(false);
+        setShowSignup(true); // Show signup modal for new users
+      }
+    } catch (err) {
+      console.error('Check account error:', err);
+      setHasAccount(false);
+    } finally {
+      setCheckingAccount(false);
     }
   }, []);
 
@@ -103,6 +137,7 @@ export default function DashboardPage() {
               setWallet(result.public_key);
               setConnected(true);
               fetchDashboard(result.public_key);
+              checkUserAccount(result.public_key); // Check for Supabase account
             } else {
               setError("Could not verify wallet response.");
             }
@@ -129,6 +164,7 @@ export default function DashboardPage() {
       setWallet(cachedWallet);
       setConnected(true);
       fetchDashboard(cachedWallet);
+      checkUserAccount(cachedWallet); // Check for Supabase account
       return;
     }
 
@@ -140,6 +176,7 @@ export default function DashboardPage() {
         setWallet(address);
         setConnected(true);
         fetchDashboard(address);
+        checkUserAccount(address); // Check for Supabase account
       }
       // else: desktop user needs to click "Connect Wallet"
       return;
@@ -158,6 +195,7 @@ export default function DashboardPage() {
           setWallet(address);
           setConnected(true);
           fetchDashboard(address);
+          checkUserAccount(address); // Check for Supabase account
           return;
         }
       }
@@ -179,6 +217,7 @@ export default function DashboardPage() {
       setWallet(address);
       setConnected(true);
       fetchDashboard(address);
+      checkUserAccount(address); // Check for Supabase account
     } catch {
       setError("Connection cancelled or failed. Please try again.");
     }
@@ -257,9 +296,38 @@ export default function DashboardPage() {
               Dashboard
             </h1>
             {wallet && (
-              <p className="text-sm font-mono mt-1" style={{ color: "#555555" }}>
-                {wallet.slice(0, 6)}...{wallet.slice(-6)}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm font-mono" style={{ color: "#555555" }}>
+                  {wallet.slice(0, 6)}...{wallet.slice(-6)}
+                </p>
+                {hasAccount && userAccount && (
+                  <>
+                    <span className="text-sm" style={{ color: "#888" }}>|</span>
+                    <span className="text-sm font-medium" style={{ color: "#f7f7f5" }}>
+                      {userAccount.username}
+                    </span>
+                    <span
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full"
+                      style={{
+                        background: userAccount.badgeTier === 'gray' ? '#888888' : 
+                                   userAccount.badgeTier === 'green' ? '#4ade80' : 
+                                   userAccount.badgeTier === 'blue' ? '#3b82f6' : '#fbbf24',
+                        boxShadow: `0 0 10px ${userAccount.badgeTier === 'gray' ? '#88888840' : 
+                                                       userAccount.badgeTier === 'green' ? '#4ade8040' : 
+                                                       userAccount.badgeTier === 'blue' ? '#3b82f640' : '#fbbf2440'}`,
+                      }}
+                      title={`${userAccount.badgeTier.charAt(0).toUpperCase() + userAccount.badgeTier.slice(1)} tier - ${userAccount.points} points`}
+                    >
+                      <svg className="w-3 h-3 text-black p-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  </>
+                )}
+                {checkingAccount && (
+                  <div className="w-4 h-4 border-2 border-[#FF6B2B] border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
             )}
           </div>
           <div className="flex gap-3 flex-shrink-0">
@@ -510,6 +578,19 @@ export default function DashboardPage() {
               )}
             </div>
           </>
+        )}
+        
+        {/* Signup Modal for new users */}
+        {showSignup && wallet && (
+          <UsernameSignup
+            walletAddress={wallet}
+            onSuccess={(username) => {
+              setShowSignup(false);
+              setHasAccount(true);
+              checkUserAccount(wallet); // Refresh account data
+            }}
+            onCancel={() => setShowSignup(false)}
+          />
         )}
       </div>
     </main>
