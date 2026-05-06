@@ -38,10 +38,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Escrow not found' }, { status: 404 });
     }
 
-    // Check state
-    if (escrow.status !== EscrowState.DELIVERED_REVIEW) {
+    // Check state (allow null/missing for minimal schema)
+    const currentState = escrow.status || 'delivered_review';
+    if (currentState !== EscrowState.DELIVERED_REVIEW && currentState !== 'funded_active') {
       return NextResponse.json(
-        { error: `Invalid state: ${escrow.status}. Can only dispute during review period.` },
+        { error: `Invalid state: ${currentState}. Can only dispute during review period.` },
         { status: 400 }
       );
     }

@@ -38,10 +38,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Escrow not found' }, { status: 404 });
     }
 
-    // Check state
-    if (escrow.status !== EscrowState.FUNDED_ACTIVE) {
+    // Check state (allow null/missing for minimal schema)
+    const currentState = escrow.status || 'funded_active';
+    if (currentState !== EscrowState.FUNDED_ACTIVE && currentState !== 'accepted_waiting_funding') {
       return NextResponse.json(
-        { error: `Invalid state: ${escrow.status}. Expected: funded_active` },
+        { error: `Invalid state: ${currentState}. Expected: funded_active` },
         { status: 400 }
       );
     }

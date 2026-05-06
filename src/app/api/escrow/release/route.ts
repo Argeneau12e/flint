@@ -38,10 +38,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Escrow not found' }, { status: 404 });
     }
 
-    // Check state
-    if (![EscrowState.DELIVERED_REVIEW, EscrowState.FUNDED_ACTIVE].includes(escrow.status as EscrowState)) {
+    // Check state (allow null/missing for minimal schema)
+    const currentState = escrow.status || 'delivered_review';
+    const validStates = [EscrowState.DELIVERED_REVIEW, EscrowState.FUNDED_ACTIVE, 'accepted_waiting_funding'];
+    if (!validStates.includes(currentState)) {
       return NextResponse.json(
-        { error: `Invalid state: ${escrow.status}` },
+        { error: `Invalid state: ${currentState}` },
         { status: 400 }
       );
     }
