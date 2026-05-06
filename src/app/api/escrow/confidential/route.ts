@@ -3,9 +3,10 @@ import {
   getUmbraClient,
   getUserRegistrationFunction,
   getPublicBalanceToReceiverClaimableUtxoCreatorFunction,
+  createU64,
 } from "@umbra-privacy/sdk";
 import { getCreateReceiverClaimableUtxoFromPublicBalanceProver } from "@umbra-privacy/web-zk-prover";
-import { address, U64 } from "@solana/kit";
+import { address } from "@solana/kit";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
     const utxoSignature = await createUtxo({
       destinationAddress: address(recipient),
       mint: address(mint),
-      amount: U64(amountSmallestUnits),
+      amount: createU64(amountSmallestUnits),
     });
 
     // Generate escrow ID from transaction signature
