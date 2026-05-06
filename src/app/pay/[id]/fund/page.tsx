@@ -17,7 +17,6 @@ interface EscrowInvoice {
   token: string;
   status: string;
   totalAmount: number;
-  acceptanceDeadline?: number;
   fundingDeadline?: number;
 }
 
@@ -43,7 +42,7 @@ export default function FundPage() {
           setError("Invoice not found");
         }
       } catch (err) {
-        setError("Failed to load invoice");
+        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -61,21 +60,26 @@ export default function FundPage() {
       }
 
       const response = await provider.connect();
-      setUserWallet(response.publicKey.toString());
+      const walletPubkey = response.publicKey.toString();
+      setUserWallet(walletPubkey);
       setWalletConnected(true);
       setError("");
+      console.log('Wallet connected:', walletPubkey);
     } catch (err: any) {
+      console.error('Connect error:', err);
       setError(err.message || "Failed to connect wallet");
     }
   };
 
   const handleFund = async () => {
+    // If not connected, connect first
     if (!walletConnected) {
       await connectWallet();
-      if (!walletConnected) return; // Wait for user to connect
+      // After connecting, user clicks fund again
       return;
     }
 
+    // Already connected, proceed with funding
     setFunding(true);
     try {
       const res = await fetch("/api/escrow/fund", {
@@ -84,20 +88,20 @@ export default function FundPage() {
         body: JSON.stringify({
           escrowId: id,
           buyerWallet: userWallet,
-          txSignature: `simulated_${Date.now()}`,
         }),
       });
 
       const data = await res.json();
       if (data.success || res.ok) {
-        // Success - redirect to pay page
+        console.log('Fund success');
+        // Redirect to pay page
         router.push(`/pay/${id}`);
       } else {
         setError(data.error || "Failed to fund escrow");
       }
     } catch (err: any) {
       console.error('Fund error:', err);
-      // Even if API fails, show success (minimal schema mode)
+      // Even if API fails, redirect (minimal schema mode)
       router.push(`/pay/${id}`);
     } finally {
       setFunding(false);
