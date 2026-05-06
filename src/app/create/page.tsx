@@ -89,8 +89,9 @@ function CreatePageInner() {
   };
 
   const tokens = [
-    { id: "USDC", label: "USDC", icon: "◎", desc: "USD Coin" },
-    { id: "SOL",  label: "SOL",  icon: "◉", desc: "Solana" },
+    { id: "USDC", label: "USDC",  icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png", desc: "USD Coin" },
+    { id: "USDT", label: "USDT",  icon: "https://assets.coingecko.com/coins/images/325/thumb/Tether-logo.png?1696501661", desc: "Tether USD" },
+    { id: "SOL",  label: "SOL",   icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png", desc: "Solana" },
   ];
 
   return (
@@ -145,9 +146,19 @@ function CreatePageInner() {
                   key={t.id}
                   onClick={() => setToken(t.id)}
                   className={`token-pill ${token === t.id ? "token-pill-active" : "token-pill-inactive"}`}
-                  style={{ minWidth: "70px" }}
+                  style={{ minWidth: "80px", padding: "8px 12px" }}
                 >
-                  <span style={{ fontSize: "15px" }}>{t.icon}</span>
+                  <img 
+                    src={t.icon} 
+                    alt={t.label}
+                    style={{ 
+                      width: "20px", 
+                      height: "20px", 
+                      objectFit: "contain",
+                      marginRight: "6px"
+                    }}
+                    loading="lazy"
+                  />
                   <span>{t.label}</span>
                 </button>
               ))}

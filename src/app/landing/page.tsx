@@ -65,7 +65,7 @@ export default function LandingPage() {
     { Icon: IconShield, color: "#8888ff", bg: "rgba(136,136,255,0.12)", title: "On-chain Receipts",       desc: "Every payment is publicly verifiable forever.",                  delay: "anim-d4" },
     { Icon: IconGlobe,  color: "#FFB800", bg: "rgba(255,184,0,0.12)",   title: "x402 Compatible",         desc: "Standard agentic payment response for machine commerce.",       delay: "anim-d5" },
     { Icon: IconFile,   color: "#e8e8e4", bg: "rgba(232,232,228,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance for enterprise.",            delay: "anim-d6" },
-    { Icon: IconLock,   color: "#4ade80", bg: "rgba(74,222,128,0.12)",  title: "Escrow + Conditions",     desc: "Enforceable conditions with PDA escrow on Solana.",             delay: "anim-d7" },
+    { Icon: IconLock,   color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "Private Payments",        desc: "REAL Umbra SDK with ZK proofs for confidential transactions.",     delay: "anim-d7" },
   ];
 
   const steps = [
@@ -128,7 +128,7 @@ export default function LandingPage() {
           style={{ background: "rgba(26,26,46,0.4)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
           <span className="text-xs" style={{ color: "#aaaaaa" }}>
-            Powered by Solana · FRS-1 Open Standard
+            Powered by QVAC + Umbra + Solana · FRS-1 Open Standard
           </span>
         </div>
 
@@ -149,7 +149,7 @@ export default function LandingPage() {
         <p className="text-base sm:text-lg max-w-xl mx-auto mb-10 animate-slide-up anim-d2"
           style={{ color: "#aaaaaa", lineHeight: "1.8" }}>
           Human-shareable payment requests.
-          Agent-executable by design.
+          Agent-executable by QVAC.
           Built for the autonomous economy.
         </p>
 

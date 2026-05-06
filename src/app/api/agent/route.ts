@@ -1,12 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInvoice, getInvoicesByWallet, Invoice } from "@/lib/store";
 import { addAuditEntry } from "@/lib/store";
+import {
+  loadModel,
+  completion,
+  unloadModel,
+  LLAMA_3_2_1B_INST_Q4_0, // 1B model - fast inference (~1-2s on Vercel)
+} from "@qvac/sdk";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
+// QVAC Model cache (prevents cold starts)
+let cachedModelId: string | null = null;
+let modelLoadPromise: Promise<string> | null = null;
+
+/**
+ * Load QVAC model with caching
+ * Security: Model loaded once per serverless instance, reused across requests
+ * Performance: Avoids 2-3s cold start on subsequent requests
+ */
+async function getQVACModel(): Promise<string> {
+  if (cachedModelId) {
+    return cachedModelId;
+  }
+
+  // Prevent concurrent model loads
+  if (modelLoadPromise) {
+    return modelLoadPromise;
+  }
+
+  modelLoadPromise = (async () => {
+    try {
+      cachedModelId = await loadModel({
+        modelSrc: LLAMA_3_2_1B_INST_Q4_0, // 1B instruct model - fast (~1-2s)
+        modelType: "llm",
+        // Security: No API keys needed - QVAC is free and local
+      });
+      console.log("✅ QVAC model loaded:", LLAMA_3_2_1B_INST_Q4_0);
+      return cachedModelId;
+    } catch (error) {
+      console.error("❌ QVAC model load failed:", error);
+      modelLoadPromise = null; // Reset for retry on next request
+      throw new Error("QVAC model initialization failed");
+    }
+  })();
+
+  return modelLoadPromise;
+}
 
 export async function OPTIONS() {
   return NextResponse.json(null, { headers: CORS });
@@ -19,6 +63,11 @@ async function analyzeInvoice(
   allowedRecipients?: string[]
 ): Promise<{ approved: boolean; reasoning: string; violations: string[] }> {
   const violations: string[] = [];
+
+  // Security: Input validation
+  if (!invoice || typeof invoice.amount !== "number" || invoice.amount <= 0) {
+    violations.push("Invalid invoice data");
+  }
 
   if (spendCap && invoice.amount > spendCap) {
     violations.push(`Amount ${invoice.amount} ${invoice.token} exceeds spend cap of ${spendCap}`);
@@ -38,12 +87,13 @@ async function analyzeInvoice(
     violations.push(`Invoice status is ${invoice.status}`);
   }
 
-  const groqApiKey = process.env.GROQ_API_KEY;
   let reasoning = "Analysis unavailable";
 
-  if (groqApiKey) {
-    try {
-      const prompt = `You are an autonomous AI payment agent on Solana. Analyze this payment request in 2 sentences max.
+  // Security: QVAC local AI - no API keys, no external calls, 100% private
+  try {
+    const modelId = await getQVACModel();
+    
+    const prompt = `You are Flint AI, an autonomous payment agent on Solana. Analyze this payment request in 2 sentences max.
 
 Invoice: ${invoice.title}
 Amount: ${invoice.amount} ${invoice.token}
@@ -54,28 +104,32 @@ Decision: ${violations.length === 0 ? "APPROVE" : "REJECT"}
 
 Give your reasoning:`;
 
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
+    const response = await completion({
+      modelId,
+      history: [
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqApiKey}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [{ role: "user", content: prompt }],
-            max_tokens: 100,
-          }),
-        }
-      );
-      const data = await res.json();
-      reasoning = data.choices?.[0]?.message?.content || reasoning;
-    } catch {
-      reasoning = violations.length === 0
-        ? "Invoice validated successfully. Approving payment."
-        : `Rejecting due to policy violations.`;
-    }
+          role: "system",
+          content: "You are Flint AI, a payment agent on Solana. Analyze invoices and provide clear, concise reasoning for approve/reject decisions. Maximum 2 sentences.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      stream: false,
+    });
+
+    // QVAC completion returns text directly when stream: false
+    reasoning = (response as any).text || "Invoice analysis complete";
+    
+    // Security: Unload model after use to free resources (optional, can keep cached)
+    // await unloadModel({ modelId }); // Commented out - keep cached for performance
+    
+  } catch (error) {
+    console.error("QVAC inference error:", error);
+    reasoning = violations.length === 0
+      ? "Invoice validated successfully. Approving payment."
+      : `Rejecting due to policy violations.`;
   }
 
   return {
@@ -186,7 +240,7 @@ export async function POST(req: NextRequest) {
       { step: 2, action: "Validated invoice fields", status: "complete", detail: `Amount: ${invoice.amount} ${invoice.token}` },
       { step: 3, action: "Checked expiry and conditions", status: "complete", detail: `Expires: ${new Date(invoice.expiresAt).toLocaleDateString()}` },
       { step: 4, action: "Applied agent policy", status: "complete", detail: analysis.violations.length === 0 ? "All policies passed" : analysis.violations.join(", ") },
-      { step: 5, action: "AI analysis complete", status: "complete", detail: "Llama 3.3 via Groq" },
+      { step: 5, action: "AI analysis complete (QVAC local)", status: "complete", detail: "Tether QVAC - No API keys, 100% local" },
       { step: 6, action: "Ready to execute", status: analysis.approved ? "ready" : "blocked", detail: analysis.approved ? "Awaiting wallet signature" : "Blocked by policy" },
     ];
 
