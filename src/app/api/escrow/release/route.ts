@@ -7,11 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { escrowId, approverWallet } = body;
+    const { escrowId } = body;
 
-    if (!escrowId || !approverWallet) {
+    console.log('Release API called:', { escrowId });
+
+    if (!escrowId) {
       return NextResponse.json(
-        { error: 'Escrow ID and approver wallet required' },
+        { error: 'Escrow ID required' },
         { status: 400 }
       );
     }
@@ -19,12 +21,14 @@ export async function POST(req: NextRequest) {
     // Simulate successful release
     // TODO: In production, verify state and transfer tokens
 
+    console.log('✅ Release success:', escrowId);
+
     return NextResponse.json({
       success: true,
       message: 'Funds released to seller successfully.',
     });
   } catch (error: any) {
-    console.error('Release error:', error);
+    console.error('Release error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

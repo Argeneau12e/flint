@@ -7,11 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { escrowId, disputantWallet, reason } = body;
+    const { escrowId, reason } = body;
 
-    if (!escrowId || !disputantWallet || !reason) {
+    console.log('Dispute API called:', { escrowId, reason: reason?.substring(0, 50) });
+
+    if (!escrowId || !reason) {
       return NextResponse.json(
-        { error: 'Escrow ID, disputant wallet, and reason required' },
+        { error: 'Escrow ID and reason required' },
         { status: 400 }
       );
     }
@@ -19,12 +21,14 @@ export async function POST(req: NextRequest) {
     // Simulate dispute opened
     // TODO: In production, verify state and trigger AI review
 
+    console.log('✅ Dispute opened:', escrowId);
+
     return NextResponse.json({
       success: true,
       message: 'Dispute opened. AI review will begin shortly.',
     });
   } catch (error: any) {
-    console.error('Dispute error:', error);
+    console.error('Dispute error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
