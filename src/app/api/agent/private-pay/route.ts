@@ -11,6 +11,7 @@ import {
   getPublicBalanceToReceiverClaimableUtxoCreatorFunction,
   createInMemorySigner,
 } from "@umbra-privacy/sdk";
+import { assertU64 } from "@umbra-privacy/sdk/types";
 import { getCreateReceiverClaimableUtxoFromPublicBalanceProver } from "@umbra-privacy/web-zk-prover";
 import { address } from "@solana/kit";
 
@@ -232,7 +233,7 @@ Should this be paid autonomously? Respond with JSON: {"shouldPay": boolean, "rea
         const utxoSignature = await createUtxo({
           destinationAddress: address(invoice.recipientWallet),
           mint: address(mint),
-          amount: amountSmallestUnits, // Pass bigint directly - SDK handles branding
+          amount: assertU64(amountSmallestUnits),
         });
 
         paymentDetails = {
