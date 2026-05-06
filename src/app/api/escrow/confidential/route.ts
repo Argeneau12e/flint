@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
     const encryptedData = {
       amount,
       token,
+      recipient,
       conditions: conditions || "None",
       memo: memo || "",
     };
