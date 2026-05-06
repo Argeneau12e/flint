@@ -16,6 +16,8 @@
     "@solana/actions": "^1.6.6",
     "@solana/kit": "^5.5.1",
     "@solana/react-hooks": "^1.4.1",
+    "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.105.3",
     "@umbra-privacy/sdk": "^2.0.3",
