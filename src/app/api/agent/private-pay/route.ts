@@ -229,7 +229,7 @@ Should this be paid autonomously? Respond with JSON: {"shouldPay": boolean, "rea
           { zkProver }
         );
 
-        const utxoResult = await createUtxo({
+        const utxoSignatures = await createUtxo({
           destinationAddress: address(invoice.recipientWallet),
           mint: address(mint),
           amount: amountSmallestUnits as unknown as import("@umbra-privacy/sdk/types").U64,
@@ -239,7 +239,7 @@ Should this be paid autonomously? Respond with JSON: {"shouldPay": boolean, "rea
           private: true,
           umbraUsed: true,
           realSdk: true,
-          transactionSignature: utxoResult.signatures[0].toString(),
+          transactionSignature: Array.isArray(utxoSignatures) ? utxoSignatures[0].toString() : "pending",
           stealthAddress: true,
           amountEncrypted: true,
           recipientHidden: true,
