@@ -96,8 +96,11 @@ export default function PayPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Redirect to funding page
-        router.push(`/pay/${id}/fund`);
+        // Stay on page and show funding button
+        // User can click "Fund Escrow" to go to fund page
+        setError("");
+        // Refresh to show updated state
+        window.location.reload();
       } else {
         setError(data.error || "Failed to accept invoice");
       }
