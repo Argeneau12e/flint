@@ -24,10 +24,18 @@ export default function UsernameSignup({ walletAddress, onSuccess, onCancel }: U
       if (username.length >= 3) {
         setChecking(true);
         try {
+          console.log('Checking username:', username);
           const isAvailable = await checkUsernameAvailable(username);
+          console.log('Username available:', isAvailable);
           setAvailable(isAvailable);
-        } catch (err) {
+        } catch (err: any) {
           console.error('Username check error:', err);
+          console.error('Error details:', {
+            message: err?.message,
+            code: err?.code,
+            details: err?.details,
+            hint: err?.hint,
+          });
           setAvailable(null);
         } finally {
           setChecking(false);
@@ -68,11 +76,16 @@ export default function UsernameSignup({ walletAddress, onSuccess, onCancel }: U
     setLoading(true);
 
     try {
+      console.log('Starting signup:', { walletAddress, username, email });
+      
       // Create user record in Supabase
+      console.log('Creating user record...');
       const user = await createUserRecord(walletAddress, username, email || undefined);
+      console.log('User created:', user);
 
       // Initialize reputation and settings
-      await supabase.from('reputation').insert([{
+      console.log('Creating reputation record...');
+      const repResult = await supabase.from('reputation').insert([{
         user_id: user.id,
         points: 0,
         badge_tier: 'gray',
@@ -80,17 +93,27 @@ export default function UsernameSignup({ walletAddress, onSuccess, onCancel }: U
         completed_as_buyer: 0,
         disputes_lost: 0,
       }]);
+      console.log('Reputation result:', repResult);
 
-      await supabase.from('settings').insert([{
+      console.log('Creating settings record...');
+      const settingsResult = await supabase.from('settings').insert([{
         user_id: user.id,
         auto_release_enabled: false,
         auto_release_threshold: 90,
         email_notifications: true,
       }]);
+      console.log('Settings result:', settingsResult);
 
       onSuccess(username);
     } catch (err: any) {
       console.error('Signup error:', err);
+      console.error('Error details:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+        stack: err?.stack,
+      });
       setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
