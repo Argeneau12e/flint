@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       isFirstInvoice: firstInvoice,
       feeTier,
       totalAmount: amount + firstInvoiceDiscount.finalFee,
-      state: EscrowState.DRAFT,
+      state: EscrowState.PENDING_ACCEPTANCE,
       title,
       description,
       createdAt: now,
