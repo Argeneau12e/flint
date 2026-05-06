@@ -58,6 +58,7 @@ function CreatePageInner() {
     if (recipientWallet.length < 32) { setError("Wallet address looks too short."); return; }
 
     setLoading(true);
+    console.log('Creating invoice:', { title, amount: Number(amount), token, creator: recipientWallet });
     try {
       // Use escrow create API (includes fee calculation)
       const res = await fetch("/api/escrow/create", {
@@ -69,7 +70,7 @@ function CreatePageInner() {
           token,
           description: memo,
           creator: recipientWallet, // Seller wallet
-          recipient: recipientWallet, // For now, same as creator (buyer will be set when invoice is shared)
+          // recipient omitted - buyer unknown at creation time
           feeTier,
           escrowEnabled,
           // Keep existing advanced options

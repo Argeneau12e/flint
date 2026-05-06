@@ -21,19 +21,22 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Validation
-    if (!creator || !recipient) {
+    if (!creator) {
       return NextResponse.json(
-        { error: 'Creator and recipient wallets are required' },
+        { error: 'Creator (seller) wallet is required' },
         { status: 400 }
       );
     }
 
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       return NextResponse.json(
         { error: 'Amount must be greater than 0' },
         { status: 400 }
       );
     }
+
+    // Recipient (buyer) is optional at creation - will be set when buyer accepts
+    const buyerWallet = recipient || '';
 
     if (!token || !SUPPORTED_TOKENS[token as keyof typeof SUPPORTED_TOKENS]) {
       return NextResponse.json(
@@ -64,8 +67,8 @@ export async function POST(req: NextRequest) {
       id: escrowId,
       version: 1,
       creator,
-      recipient,
-      amount,
+      recipient: buyerWallet,
+      amount: Number(amount),
       tokenMint: SUPPORTED_TOKENS[token as keyof typeof SUPPORTED_TOKENS].mint,
       tokenSymbol: token,
       feeAmount: firstInvoiceDiscount.finalFee,
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
       feeDiscount: firstInvoiceDiscount.discount,
       isFirstInvoice: firstInvoice,
       feeTier,
-      totalAmount: amount + firstInvoiceDiscount.finalFee,
+      totalAmount: Number(amount) + firstInvoiceDiscount.finalFee,
       state: EscrowState.PENDING_ACCEPTANCE,
       title,
       description,
@@ -89,6 +92,8 @@ export async function POST(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
+    console.log('Creating escrow:', { escrowId, creator, amount, token, title, hasSupabase: !!(supabaseUrl && supabaseServiceKey) });
+    
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
@@ -98,14 +103,14 @@ export async function POST(req: NextRequest) {
         .insert([{
           id: escrowId,
           creator_user_id: null, // Will be set when user claims invoice
-          recipient_wallet: recipient,
-          amount: amount,
+          recipient_wallet: buyerWallet,
+          amount: Number(amount),
           token: token,
           title: title || 'Invoice',
           description: description || '',
           status: EscrowState.PENDING_ACCEPTANCE,
-          fee_amount: firstInvoiceDiscount.finalFee,
-          total_amount: amount + firstInvoiceDiscount.finalFee,
+          fee_amount: Number(firstInvoiceDiscount.finalFee),
+          total_amount: Number(amount) + Number(firstInvoiceDiscount.finalFee),
           acceptance_deadline: new Date(acceptanceDeadline).toISOString(),
           funding_deadline: new Date(fundingDeadline).toISOString(),
           review_deadline: new Date(reviewDeadline).toISOString(),
@@ -115,8 +120,16 @@ export async function POST(req: NextRequest) {
       
       if (invoiceError) {
         console.error('Supabase insert error:', invoiceError);
-        // Continue anyway - escrow data is still valid
+        // Return error so user knows
+        return NextResponse.json(
+          { error: 'Database error: ' + invoiceError.message, details: invoiceError },
+          { status: 500 }
+        );
+      } else {
+        console.log('Escrow saved to Supabase successfully');
       }
+    } else {
+      console.warn('Supabase not configured - escrow created in memory only');
     }
 
     return NextResponse.json({

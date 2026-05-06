@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    console.log('Invoice status lookup:', { id, hasSupabase: !!(supabaseUrl && supabaseServiceKey) });
+
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
@@ -26,6 +28,8 @@ export async function GET(req: NextRequest) {
         .select('*')
         .eq('id', id)
         .single();
+
+      console.log('Invoice lookup result:', { found: !!invoice, error: error?.message });
 
       if (error || !invoice) {
         // Invoice not found in Supabase - return empty but valid structure
