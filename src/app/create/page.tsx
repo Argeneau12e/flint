@@ -4,9 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import FeeCalculator from "@/components/escrow/FeeCalculator";
-import { useAccount } from "@/hooks/useAccount";
-import { calculateTotal } from "@/lib/escrow/utils";
-import { FEE_TIERS, EscrowState } from "@/lib/escrow/types";
+import { FEE_TIERS } from "@/lib/escrow/types";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -35,7 +33,6 @@ function CreatePageInner() {
   const [error, setError] = useState("");
   
   // Escrow integration
-  const { account } = useAccount();
   const [escrowEnabled] = useState(true); // Escrow is DEFAULT (no toggle)
   const [feeTier, setFeeTier] = useState<keyof typeof FEE_TIERS>('FREE');
 
@@ -218,22 +215,7 @@ function CreatePageInner() {
               feeTier={feeTier}
               showDisclosure={true}
             />
-            {account && account.badgeTier !== 'gray' && (
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={() => setFeeTier(feeTier === 'FREE' ? 'PRO' : feeTier === 'PRO' ? 'BUSINESS' : 'FREE')}
-                  className="text-xs px-3 py-1.5 rounded-lg transition-all"
-                  style={{
-                    background: feeTier !== 'FREE' ? 'rgba(255,107,43,0.15)' : 'rgba(15,15,15,0.5)',
-                    border: feeTier !== 'FREE' ? '1px solid rgba(255,107,43,0.3)' : '1px solid rgba(255,255,255,0.07)',
-                    color: feeTier !== 'FREE' ? '#FF6B2B' : '#888',
-                  }}
-                >
-                  Current: {FEE_TIERS[feeTier].name} ({FEE_TIERS[feeTier].rate * 100}%)
-                </button>
-                <span className="text-xs" style={{ color: '#666' }}>Click to change tier</span>
-              </div>
-            )}
+
           </div>
         )}
 

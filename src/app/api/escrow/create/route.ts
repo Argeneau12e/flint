@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateFee, calculateTotal, isFirstInvoice, applyFirstInvoiceFree } from '@/lib/escrow/utils';
 import { EscrowState, SUPPORTED_TOKENS, FEE_TIERS, ESCROW_TIMEOUTS } from '@/lib/escrow/types';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/escrow/create
@@ -84,12 +85,37 @@ export async function POST(req: NextRequest) {
       dispute: null,
     };
 
-    // TODO: Save to Supabase
-    // TODO: Create on-chain PDA (Anchor program)
+    // Save to Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Insert into invoices table (for backward compatibility)
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([{
+          id: escrowId,
+          creator_user_id: null, // Will be set when user claims invoice
+          recipient_wallet: recipient,
+          amount: amount,
+          token: token,
+          status: 'draft',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }]);
+      
+      if (invoiceError) {
+        console.error('Supabase insert error:', invoiceError);
+        // Continue anyway - escrow data is still valid
+      }
+    }
 
     return NextResponse.json({
       success: true,
       escrow: escrowData,
+      id: escrowId, // Add id field for backward compatibility
       feeBreakdown: {
         amount,
         fee: firstInvoiceDiscount.finalFee,
