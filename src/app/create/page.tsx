@@ -3,6 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
+import FeeCalculator from "@/components/escrow/FeeCalculator";
+import { useAccount } from "@/hooks/useAccount";
+import { calculateTotal } from "@/lib/escrow/utils";
+import { FEE_TIERS, EscrowState } from "@/lib/escrow/types";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -29,6 +33,11 @@ function CreatePageInner() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Escrow integration
+  const { account } = useAccount();
+  const [escrowEnabled] = useState(true); // Escrow is DEFAULT (no toggle)
+  const [feeTier, setFeeTier] = useState<keyof typeof FEE_TIERS>('FREE');
 
   const searchParams = useSearchParams();
 
@@ -53,11 +62,22 @@ function CreatePageInner() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/invoice/create", {
+      // Use escrow create API (includes fee calculation)
+      const res = await fetch("/api/escrow/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, amount, token, memo, expiryDays, recipientWallet, handle, condition,
+          title,
+          amount: Number(amount),
+          token,
+          description: memo,
+          creator: recipientWallet, // Seller wallet
+          recipient: recipientWallet, // For now, same as creator (buyer will be set when invoice is shared)
+          feeTier,
+          escrowEnabled,
+          // Keep existing advanced options
+          handle,
+          condition,
           splits: splits.length > 0 ? splits : undefined,
           recurring,
           recurringInterval: recurring ? recurringInterval : undefined,
@@ -66,13 +86,14 @@ function CreatePageInner() {
         }),
       });
       const data = await res.json();
-      if (data.id) {
-        router.push(`/invoice/${data.id}`);
+      if (data.escrow?.id) {
+        router.push(`/invoice/${data.escrow.id}`);
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(data.error || "Something went wrong. Please try again.");
       }
-    } catch {
+    } catch (err: any) {
       setError("Network error. Please try again.");
+      console.error('Submit error:', err);
     } finally {
       setLoading(false);
     }
@@ -110,6 +131,24 @@ function CreatePageInner() {
       </div>
 
       <div className="max-w-lg mx-auto rounded-2xl p-6 sm:p-8 flex flex-col gap-6 glass-medium">
+
+        {/* Escrow Enabled Banner */}
+        <div 
+          className="p-4 rounded-xl flex items-start gap-3"
+          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}
+        >
+          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(74,222,128,0.2)' }}>
+            <svg className="w-3 h-3 text-[#4ade80]" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: '#4ade80' }}>Escrow Protection Enabled</p>
+            <p className="text-xs mt-1" style={{ color: '#888' }}>
+              Funds are held securely until work is delivered. AI-powered dispute resolution included.
+            </p>
+          </div>
+        </div>
 
         {/* Title */}
         <div>
@@ -168,6 +207,35 @@ function CreatePageInner() {
             {token === "USDC" ? "USD Coin — stable, dollar-pegged" : "Native Solana token"}
           </p>
         </div>
+
+        {/* Fee Calculator - ESCROW INTEGRATION */}
+        {amount && Number(amount) > 0 && (
+          <div>
+            <label style={labelStyle}>Escrow Protection</label>
+            <FeeCalculator 
+              amount={Number(amount)} 
+              token={token as 'SOL' | 'USDC' | 'USDT'} 
+              feeTier={feeTier}
+              showDisclosure={true}
+            />
+            {account && account.badgeTier !== 'gray' && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() => setFeeTier(feeTier === 'FREE' ? 'PRO' : feeTier === 'PRO' ? 'BUSINESS' : 'FREE')}
+                  className="text-xs px-3 py-1.5 rounded-lg transition-all"
+                  style={{
+                    background: feeTier !== 'FREE' ? 'rgba(255,107,43,0.15)' : 'rgba(15,15,15,0.5)',
+                    border: feeTier !== 'FREE' ? '1px solid rgba(255,107,43,0.3)' : '1px solid rgba(255,255,255,0.07)',
+                    color: feeTier !== 'FREE' ? '#FF6B2B' : '#888',
+                  }}
+                >
+                  Current: {FEE_TIERS[feeTier].name} ({FEE_TIERS[feeTier].rate * 100}%)
+                </button>
+                <span className="text-xs" style={{ color: '#666' }}>Click to change tier</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Wallet */}
         <div>
