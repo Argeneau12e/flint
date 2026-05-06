@@ -17,6 +17,8 @@
     "@solana/kit": "^5.5.1",
     "@solana/react-hooks": "^1.4.1",
     "@solana/web3.js": "^1.98.4",
+    "@umbra-privacy/sdk": "^2.0.3",
+    "@umbra-privacy/web-zk-prover": "^2.0.1",
     "@vercel/kv": "^3.0.0",
     "jspdf": "^4.2.1",
     "next": "16.2.4",

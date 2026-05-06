@@ -65,7 +65,7 @@ export default function LandingPage() {
     { Icon: IconShield, color: "#8888ff", bg: "rgba(136,136,255,0.12)", title: "On-chain Receipts",       desc: "Every payment is publicly verifiable forever.",                  delay: "anim-d4" },
     { Icon: IconGlobe,  color: "#FFB800", bg: "rgba(255,184,0,0.12)",   title: "x402 Compatible",         desc: "Standard agentic payment response for machine commerce.",       delay: "anim-d5" },
     { Icon: IconFile,   color: "#e8e8e4", bg: "rgba(232,232,228,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance for enterprise.",            delay: "anim-d6" },
-    { Icon: IconLock,   color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "Private Payments",        desc: "Umbra Protocol integration for confidential transactions.",     delay: "anim-d7" },
+    { Icon: IconLock,   color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "Private Payments",        desc: "REAL Umbra SDK with ZK proofs for confidential transactions.",     delay: "anim-d7" },
   ];
 
   const steps = [
