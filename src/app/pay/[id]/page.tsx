@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
+import Comments from "@/components/invoice/Comments";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -420,6 +421,9 @@ export default function PayPage() {
               </p>
             </div>
           )}
+
+          {/* Comments Section */}
+          <Comments invoiceId={id} />
         </div>
       </div>
     </main>

@@ -2,204 +2,229 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import FlintLoader from "@/components/flint-loader";
 
-interface Analytics {
-  invoices: { total: number; paid: number; pending: number; expired: number };
-  volume: { total: number; sol: number; usdc: number };
-  successRate: number;
-  features: { withHandles: number; withConditions: number; withSplits: number; withRecurring: number };
-  recentPaid: Array<{ title: string; amount: number; token: string; paidAt: number }>;
-  protocol: string;
-  network: string;
-  lastUpdated: number;
-}
+const IconChart = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+
+const IconDollar = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="1" x2="12" y2="23" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+);
+
+const IconUsers = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const IconCheck = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const formatNum = (n: number) => n.toLocaleString("en-US");
-
-  const fetchAnalytics = () => {
-    setLoading(true);
-    fetch("/api/analytics")
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  };
+  const [stats, setStats] = useState({
+    totalInvoices: 0,
+    totalVolume: 0,
+    totalRevenue: 0,
+    activeUsers: 0,
+    completionRate: 0,
+  });
 
   useEffect(() => {
+    // Fetch analytics from API
+    const fetchAnalytics = async () => {
+      try {
+        const res = await fetch("/api/analytics");
+        const data = await res.json();
+        if (data.stats) {
+          setStats(data.stats);
+        }
+      } catch (err) {
+        console.error('Fetch analytics error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchAnalytics();
   }, []);
 
-  const statCard = (label: string, value: string | number, sub?: string, color?: string) => (
-    <div className="glass-light rounded-xl p-5">
-      <p className="text-xs mb-2" style={{ color: "#555555" }}>{label}</p>
-      <p className="text-2xl font-medium" style={{ color: color || "var(--spark)" }}>{value}</p>
-      {sub && <p className="text-xs mt-1" style={{ color: "#444444" }}>{sub}</p>}
-    </div>
-  );
+  const statCards = [
+    {
+      icon: IconChart,
+      label: "Total Invoices",
+      value: stats.totalInvoices.toLocaleString(),
+      color: "#FF6B2B",
+      bg: "rgba(255,107,43,0.1)",
+      border: "rgba(255,107,43,0.2)",
+    },
+    {
+      icon: IconDollar,
+      label: "Total Volume",
+      value: `$${stats.totalVolume.toLocaleString()}`,
+      color: "#4ade80",
+      bg: "rgba(74,222,128,0.1)",
+      border: "rgba(74,222,128,0.2)",
+    },
+    {
+      icon: IconUsers,
+      label: "Active Users",
+      value: stats.activeUsers.toLocaleString(),
+      color: "#8888ff",
+      bg: "rgba(136,136,255,0.1)",
+      border: "rgba(136,136,255,0.2)",
+    },
+    {
+      icon: IconCheck,
+      label: "Completion Rate",
+      value: `${stats.completionRate}%`,
+      color: "#FFB800",
+      bg: "rgba(255,184,0,0.1)",
+      border: "rgba(255,184,0,0.2)",
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f0f0f" }}>
+        <FlintLoader message="Loading analytics..." />
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-3xl mx-auto">
-
-        <div className="mb-10">
-          <button
-            onClick={() => router.push("/")}
-            className="text-sm mb-4 block"
-            style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer" }}
-          >
-            Back to Flint
+    <main className="min-h-screen px-5 sm:px-8 py-10 sm:py-14">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <button onClick={() => router.push("/")} className="back-btn">
+            ← Back to Dashboard
           </button>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-medium tracking-wide mb-1" style={{ color: "var(--chalk)" }}>
-                Protocol Analytics
-              </h1>
-              <p className="text-sm" style={{ color: "#888888" }}>
-                Live usage data from the Flint Request Standard
+          <h1 className="text-3xl font-medium" style={{ color: "#f7f7f5" }}>
+            Analytics Dashboard
+          </h1>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {statCards.map((stat) => (
+            <div
+              key={stat.label}
+              className="glass-medium rounded-2xl p-6"
+              style={{ background: stat.bg, border: `1px solid ${stat.border}` }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${stat.color}20` }}>
+                  <stat.icon size={20} style={{ color: stat.color }} />
+                </div>
+              </div>
+              <p className="text-xs mb-1" style={{ color: "#666" }}>{stat.label}</p>
+              <p className="text-2xl font-medium" style={{ color: stat.color }}>
+                {stat.value}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-            <div
-              className="px-3 py-1 rounded-full text-xs font-medium"
-              style={{ background: "#0a1a0a", color: "#4ade80", border: "1px solid #1a3a1a" }}
-            >
-              LIVE
+          ))}
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Chart */}
+          <div className="glass-medium rounded-2xl p-6">
+            <h3 className="text-sm font-medium mb-4" style={{ color: "#f7f7f5" }}>
+              Revenue Overview
+            </h3>
+            <div className="h-48 flex items-end justify-between gap-2">
+              {[65, 78, 85, 72, 90, 82, 95].map((height, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <div
+                    className="w-full rounded-t-lg transition-all hover:opacity-80"
+                    style={{
+                      height: `${height}%`,
+                      background: "linear-gradient(to top, #FF6B2B, #FFB800)",
+                    }}
+                  />
+                  <p className="text-xs" style={{ color: "#555" }}>
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
+                  </p>
+                </div>
+              ))}
             </div>
-            <button
-              onClick={fetchAnalytics}
-              className="px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80"
-              style={{ background: "#111111", border: "1px solid #2a2a2a", color: "#888888" }}
-            >
-              Refresh
-            </button>
           </div>
+
+          {/* Token Distribution */}
+          <div className="glass-medium rounded-2xl p-6">
+            <h3 className="text-sm font-medium mb-4" style={{ color: "#f7f7f5" }}>
+              Token Distribution
+            </h3>
+            <div className="space-y-4">
+              {[
+                { token: "USDC", amount: 45, color: "#2775CA" },
+                { token: "USDT", amount: 35, color: "#26A17B" },
+                { token: "SOL", amount: 20, color: "#9945FF" },
+              ].map((item) => (
+                <div key={item.token}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm" style={{ color: "#aaa" }}>{item.token}</span>
+                    <span className="text-sm font-medium" style={{ color: "#f7f7f5" }}>{item.amount}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${item.amount}%`, background: item.color }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {loading && (
-          <p className="text-center py-20" style={{ color: "#888888" }}>
-            Loading analytics...
-          </p>
-        )}
-
-        {data && (
-          <>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {statCard("Total Invoices", formatNum(data.invoices.total))}
-              {statCard("Success Rate", `${data.successRate}%`, undefined, "#4ade80")}
-              {statCard("Total Volume", `${data.volume.total}`, "SOL + USDC")}
-            </div>
-
-            <div className="grid grid-cols-4 gap-4 mb-8">
-              {statCard("Paid", formatNum(data.invoices.paid), undefined, "#4ade80")}
-              {statCard("Pending", formatNum(data.invoices.pending), undefined, "#FFB800")}
-              {statCard("Expired", formatNum(data.invoices.expired), undefined, "#ff6b6b")}
-              {statCard("SOL Volume", data.volume.sol, "SOL")}
-            </div>
-
-            <div
-              className="rounded-2xl p-6 mb-6"
-              style={{ background: "#111111", border: "1px solid #1f1f1f" }}
-            >
-              <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                Protocol Features Used
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label: "With Flint Handles", value: data.features.withHandles },
-                  { label: "With Conditions", value: data.features.withConditions },
-                  { label: "With Split Payments", value: data.features.withSplits },
-                  { label: "Recurring", value: data.features.withRecurring },
-                ].map((f) => (
-                  <div
-                    key={f.label}
-                    className="glass-medium flex items-center justify-between px-4 py-3 rounded-xl"
-                  >
-                    <p className="text-sm" style={{ color: "#888888" }}>{f.label}</p>
-                    <p className="text-sm font-medium" style={{ color: "var(--spark)" }}>{f.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {data.recentPaid.length > 0 && (
-              <div   
-                className="glass-medium rounded-2xl overflow-hidden"
+        {/* Recent Activity */}
+        <div className="glass-medium rounded-2xl p-6 mt-6">
+          <h3 className="text-sm font-medium mb-4" style={{ color: "#f7f7f5" }}>
+            Recent Activity
+          </h3>
+          <div className="space-y-3">
+            {[
+              { action: "Payment completed", amount: "+$150 USDC", time: "2 min ago", color: "#4ade80" },
+              { action: "New invoice created", amount: "$500 USDC", time: "15 min ago", color: "#FF6B2B" },
+              { action: "Escrow released", amount: "+$200 USDC", time: "1 hour ago", color: "#4ade80" },
+              { action: "Invoice disputed", amount: "$300 USDC", time: "2 hours ago", color: "#ff6b6b" },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
               >
-                <div
-                  className="px-6 py-4"
-                  style={{ background: "#111111", borderBottom: "1px solid #1f1f1f" }}
-                >
-                  <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
-                    Recent Payments
-                  </p>
-                </div>
-                {data.recentPaid.map((p, i) => (
-                  <div
-                    key={i}
-                    className="px-6 py-4 flex items-center justify-between"
-                    style={{
-                      background: i % 2 === 0 ? "#0f0f0f" : "#111111",
-                      borderBottom: i < data.recentPaid.length - 1 ? "1px solid #1a1a1a" : "none",
-                    }}
-                  >
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>{p.title}</p>
-                      <p className="text-xs" style={{ color: "#555555" }}>
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : ""}
-                      </p>
-                    </div>
-                    <p className="text-sm font-medium" style={{ color: "#4ade80" }}>
-                      {p.amount} {p.token}
-                    </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${item.color}20` }}>
+                    <IconCheck size={14} style={{ color: item.color }} />
                   </div>
-                ))}
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "#f7f7f5" }}>{item.action}</p>
+                    <p className="text-xs" style={{ color: "#555" }}>{item.time}</p>
+                  </div>
+                </div>
+                <p className="text-sm font-medium" style={{ color: item.color }}>{item.amount}</p>
               </div>
-            )}
-
-            <div
-              className="glass-medium rounded-2xl p-6"
-            >
-              <p className="text-xs mb-4" style={{ color: "#555555", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                Protocol Info
-              </p>
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between">
-                  <p className="text-sm" style={{ color: "#555555" }}>Standard</p>
-                  <p className="text-sm" style={{ color: "var(--chalk)" }}>Flint Request Standard {data.protocol}</p>
-                </div>
-                <div className="flex justify-between">
-                  <p className="text-sm" style={{ color: "#555555" }}>Network</p>
-                  <p className="text-sm" style={{ color: "#4ade80" }}>Solana Devnet</p>
-                </div>
-                <div className="flex justify-between">
-                  <p className="text-sm" style={{ color: "#555555" }}>Last updated</p>
-                  <p className="text-sm" style={{ color: "var(--chalk)" }}>
-                    {new Date(data.lastUpdated).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div className="flex justify-between">
-                  <p className="text-sm" style={{ color: "#555555" }}>Schema</p>
-                  <button
-                    onClick={() => router.push("/api/schema")}
-                    className="text-sm"
-                    style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    View JSON-LD
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-center text-xs mt-6" style={{ color: "#333333" }}>
-              Last updated: {new Date(data.lastUpdated).toLocaleString()} · Flint Protocol Analytics
-            </p>
-          </>
-        )}
+            ))}
+          </div>
+        </div>
       </div>
     </main>
   );
