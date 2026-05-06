@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { calculateTotal, getSOLPrice, validateMinimumAmount } from '@/lib/escrow/utils';
-import { FEE_TIERS, MINIMUMS } from '@/lib/escrow/types';
+import { FEE_TIERS, MINIMUMS, SUPPORTED_TOKENS } from '@/lib/escrow/types';
 
 interface FeeCalculatorProps {
   amount: number;
@@ -48,8 +48,9 @@ export default function FeeCalculator({
       }
       setMinimumError(null);
 
-      // Calculate fee
-      const info = calculateTotal(amount, feeTier, amountUsd);
+      // Calculate fee (pass tokenPrice for proper conversion)
+      const tokenPrice = token === 'SOL' ? solPrice : 1;
+      const info = calculateTotal(amount, feeTier, amountUsd, tokenPrice);
       setFeeInfo(info);
       setMinimumApplied(info.minimumApplied);
     }
@@ -57,6 +58,14 @@ export default function FeeCalculator({
 
   // USD equivalent display
   const usdEquivalent = token === 'SOL' ? (amount * solPrice).toFixed(2) : amount.toFixed(2);
+
+  // Use feeUsd from feeInfo (already calculated correctly)
+  const feeUsd = feeInfo?.feeUsd.toFixed(2) || '0.00';
+  
+  // Calculate total in USD for display
+  const totalUsd = feeInfo && token === 'SOL'
+    ? (feeInfo.total * solPrice).toFixed(2)
+    : feeInfo?.total.toFixed(2) || '0.00';
 
   // Minimum fee indicator
   const minimumFeeApplied = minimumApplied && feeInfo;
@@ -76,7 +85,13 @@ export default function FeeCalculator({
 
       {minimumError ? (
         <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.2)' }}>
-          <span style={{ color: '#ff4444' }}>⚠️ {minimumError}</span>
+          <div className="flex items-start gap-2">
+            {/* Warning Icon (SVG - no emoji) */}
+            <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span style={{ color: '#ff4444' }}>{minimumError}</span>
+          </div>
         </div>
       ) : feeInfo ? (
         <div className="space-y-2 text-sm">
@@ -105,7 +120,7 @@ export default function FeeCalculator({
               {feeInfo.fee.toFixed(2)} {token}
               {token === 'SOL' && (
                 <span className="ml-2 text-xs" style={{ color: '#666' }}>
-                  (~${feeInfo.fee.toFixed(2)} USD)
+                  (~${feeUsd} USD)
                 </span>
               )}
             </span>
@@ -114,21 +129,39 @@ export default function FeeCalculator({
           {/* Minimum Fee Applied */}
           {minimumFeeApplied && (
             <div className="text-xs" style={{ color: '#FF6B2B' }}>
-              ✓ Minimum fee applied (${MINIMUMS.MIN_FEE_USD})
+              <div className="flex items-center gap-1">
+                {/* Check Icon (SVG - no emoji) */}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Minimum fee applied (${MINIMUMS.MIN_FEE_USD})
+              </div>
             </div>
           )}
 
           {/* Fee Cap Indicator */}
           {feeCapInfo && (
             <div className="text-xs" style={{ color: '#4ade80' }}>
-              ✓ Fee cap applied (max ${feeCapInfo.cap} USD)
+              <div className="flex items-center gap-1">
+                {/* Check Icon (SVG - no emoji) */}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Fee cap applied (max ${feeCapInfo.cap} USD)
+              </div>
             </div>
           )}
 
           {/* First Invoice Free */}
           {isFirstInvoice && (
             <div className="text-xs" style={{ color: '#4ade80' }}>
-              ✓ First invoice free! (-${feeInfo.fee.toFixed(2)} USD)
+              <div className="flex items-center gap-1">
+                {/* Check Icon (SVG - no emoji) */}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                First invoice free! (-${feeUsd} USD)
+              </div>
             </div>
           )}
 
@@ -142,7 +175,7 @@ export default function FeeCalculator({
               {feeInfo.total.toFixed(2)} {token}
               {token === 'SOL' && (
                 <span className="ml-2 text-xs" style={{ color: '#666' }}>
-                  (~${feeInfo.total.toFixed(2)} USD)
+                  (~${totalUsd} USD)
                 </span>
               )}
             </span>
@@ -163,14 +196,16 @@ export default function FeeCalculator({
               First invoice is free! Pro (0.5%) and Business (0.25%) tiers available.
             </span>
           </p>
-          <p className="text-xs mt-2" style={{ color: '#444' }}>
-            <span style={{ color: '#888' }}>Minimum invoice: </span>
-            <span style={{ color: '#888' }}>${MINIMUMS.MIN_INVOICE_USD} USD</span>
-          </p>
-          <p className="text-xs" style={{ color: '#444' }}>
-            <span style={{ color: '#888' }}>Minimum fee: </span>
-            <span style={{ color: '#888' }}>${MINIMUMS.MIN_FEE_USD} USD</span>
-          </p>
+          <div className="flex gap-4 mt-2 text-xs" style={{ color: '#444' }}>
+            <div>
+              <span style={{ color: '#888' }}>Minimum invoice: </span>
+              <span style={{ color: '#888' }}>${MINIMUMS.MIN_INVOICE_USD} USD</span>
+            </div>
+            <div>
+              <span style={{ color: '#888' }}>Minimum fee: </span>
+              <span style={{ color: '#888' }}>${MINIMUMS.MIN_FEE_USD} USD</span>
+            </div>
+          </div>
         </div>
       )}
     </div>

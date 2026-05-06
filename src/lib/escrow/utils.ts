@@ -42,45 +42,51 @@ export function validateMinimumAmount(amountUsd: number): {
 
 /**
  * Calculate Flint fee based on amount and tier (with minimums)
+ * IMPORTANT: amount is in token units, but fee logic is in USD
+ * Returns fee in TOKEN units (not USD)
  */
 export function calculateFee(
   amount: number,
   tier: keyof typeof FEE_TIERS = 'FREE',
-  amountUsd?: number
+  amountUsd?: number,
+  tokenPrice: number = 1 // SOL price, or 1 for stablecoins
 ): {
   fee: number;
+  feeUsd: number;
   effectiveRate: number;
   capApplied: boolean;
   minimumApplied: boolean;
 } {
   const tierConfig = FEE_TIERS[tier];
-  const rawFee = amount * tierConfig.rate;
+  const amountInUsd = amountUsd || (amount * tokenPrice);
   
-  // Check fee caps
-  let finalFee = rawFee;
+  // Calculate fee in USD first
+  let feeUsd = amountInUsd * tierConfig.rate;
   let capApplied = false;
   let minimumApplied = false;
-  let effectiveRate = tierConfig.rate;
   
-  if (amount >= FEE_CAPS.CAP_100K.threshold) {
-    finalFee = Math.min(rawFee, FEE_CAPS.CAP_100K.cap);
-    effectiveRate = finalFee / amount;
+  // Apply fee caps (in USD)
+  if (amountInUsd >= FEE_CAPS.CAP_100K.threshold) {
+    feeUsd = Math.min(feeUsd, FEE_CAPS.CAP_100K.cap);
     capApplied = true;
-  } else if (amount >= FEE_CAPS.CAP_50K.threshold) {
-    finalFee = Math.min(rawFee, FEE_CAPS.CAP_50K.cap);
-    effectiveRate = finalFee / amount;
+  } else if (amountInUsd >= FEE_CAPS.CAP_50K.threshold) {
+    feeUsd = Math.min(feeUsd, FEE_CAPS.CAP_50K.cap);
     capApplied = true;
   }
   
-  // Apply minimum fee (for small amounts)
-  if (finalFee < MINIMUMS.MIN_FEE_USD) {
-    finalFee = MINIMUMS.MIN_FEE_USD;
-    effectiveRate = finalFee / (amountUsd || amount);
+  // Apply minimum fee (in USD)
+  if (feeUsd < MINIMUMS.MIN_FEE_USD) {
+    feeUsd = MINIMUMS.MIN_FEE_USD;
     minimumApplied = true;
   }
   
+  // Convert fee back to token units
+  const feeInToken = feeUsd / tokenPrice;
+  const effectiveRate = feeUsd / amountInUsd;
+  
   return {
-    fee: Number(finalFee.toFixed(2)),
+    fee: Number(feeInToken.toFixed(6)), // 6 decimals for SOL precision
+    feeUsd: Number(feeUsd.toFixed(2)),
     effectiveRate,
     capApplied,
     minimumApplied,
@@ -93,22 +99,25 @@ export function calculateFee(
 export function calculateTotal(
   amount: number,
   tier?: keyof typeof FEE_TIERS,
-  amountUsd?: number
+  amountUsd?: number,
+  tokenPrice: number = 1
 ): {
   amount: number;
   fee: number;
+  feeUsd: number;
   total: number;
   tier: string;
   minimumApplied: boolean;
   capApplied: boolean;
 } {
-  const { fee, effectiveRate, capApplied, minimumApplied } = calculateFee(amount, tier, amountUsd);
+  const { fee, feeUsd, effectiveRate, capApplied, minimumApplied } = calculateFee(amount, tier, amountUsd, tokenPrice);
   const tierConfig = FEE_TIERS[tier || 'FREE'];
   
   return {
     amount,
     fee,
-    total: Number((amount + fee).toFixed(2)),
+    feeUsd,
+    total: Number((amount + fee).toFixed(6)),
     tier: tierConfig.name,
     minimumApplied,
     capApplied,
