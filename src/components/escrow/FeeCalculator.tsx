@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { calculateTotal, FEE_CAPS } from '@/lib/escrow/utils';
-import { FEE_TIERS } from '@/lib/escrow/types';
+import { calculateTotal } from '@/lib/escrow/utils';
+import { FEE_TIERS, FEE_CAPS } from '@/lib/escrow/types';
 
 interface FeeCalculatorProps {
   amount: number;
