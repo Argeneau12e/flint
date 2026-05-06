@@ -109,14 +109,14 @@ export async function POST(req: NextRequest) {
     );
 
     // Create the private payment UTXO
-    const utxoSignature = await createUtxo({
+    const utxoResult = await createUtxo({
       destinationAddress: address(recipient),
       mint: address(mint),
       amount: amountSmallestUnits as unknown as import("@umbra-privacy/sdk/types").U64,
     });
 
     // Generate escrow ID from transaction signature
-    const escrowId = `umbra-${Date.now()}-${utxoSignature.substring(0, 8)}`;
+    const escrowId = `umbra-${Date.now()}-${utxoResult.signatures[0].toString().substring(0, 8)}`;
 
     return NextResponse.json({
       success: true,
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       confidential: true,
       umbraUsed: true,
       network: "devnet",
-      transactionSignature: utxoSignature,
+      transactionSignature: utxoResult.signatures[0].toString(),
       publicDetails: {
         title: title || "Confidential Escrow",
         created: new Date().toISOString(),
