@@ -34,10 +34,12 @@ export default function ReputationBadge({ badgeTier, size = 'md', showTooltip = 
       }}
       title={showTooltip ? `${badgeLabels[badgeTier]} - ${badgeTier.charAt(0).toUpperCase() + badgeTier.slice(1)} tier` : undefined}
     >
+      {/* SVG Checkmark Icon - No Emojis */}
       <svg
         className="w-full h-full text-black p-0.5"
         fill="currentColor"
         viewBox="0 0 20 20"
+        xmlns="http://www.w3.org/2000/svg"
       >
         <path
           fillRule="evenodd"
