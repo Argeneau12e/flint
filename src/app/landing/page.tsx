@@ -60,12 +60,12 @@ export default function LandingPage() {
   ], []);
 
   const features = [
-    { Icon: IconZap,    color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "Solana Actions + Blinks", desc: "Payment links that work in any Blink-aware wallet.",                delay: "anim-d2" },
-    { Icon: IconCpu,    color: "#4ade80", bg: "rgba(74,222,128,0.12)",  title: "AI Agent Executable",     desc: "Autonomous agents read and pay invoices via JSON-LD.",           delay: "anim-d3" },
-    { Icon: IconShield, color: "#8888ff", bg: "rgba(136,136,255,0.12)", title: "On-chain Receipts",       desc: "Every payment is publicly verifiable forever.",                  delay: "anim-d4" },
-    { Icon: IconGlobe,  color: "#FFB800", bg: "rgba(255,184,0,0.12)",   title: "x402 Compatible",         desc: "Standard agentic payment response for machine commerce.",       delay: "anim-d5" },
-    { Icon: IconFile,   color: "#e8e8e4", bg: "rgba(232,232,228,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance for enterprise.",            delay: "anim-d6" },
-    { Icon: IconLock,   color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "Private Payments",        desc: "REAL Umbra SDK with ZK proofs for confidential transactions.",     delay: "anim-d7" },
+    { Icon: IconShield, color: "#4ade80", bg: "rgba(74,222,128,0.12)",  title: "Escrow Protection",      desc: "AI-powered escrow with dispute resolution. Funds held securely.", delay: "anim-d2" },
+    { Icon: IconCpu,    color: "#FF6B2B", bg: "rgba(255,107,43,0.12)",  title: "QVAC AI Integration",   desc: "Tether's decentralized AI SDK for autonomous agent payments.",  delay: "anim-d3" },
+    { Icon: IconLock,   color: "#8888ff", bg: "rgba(136,136,255,0.12)", title: "Umbra Privacy",          desc: "REAL Umbra SDK with ZK proofs for confidential transactions.",  delay: "anim-d4" },
+    { Icon: IconZap,    color: "#FFB800", bg: "rgba(255,184,0,0.12)",   title: "Solana Actions + Blinks", desc: "Payment links that work in any Blink-aware wallet.",        delay: "anim-d5" },
+    { Icon: IconGlobe,  color: "#e8e8e4", bg: "rgba(232,232,228,0.08)", title: "x402 Compatible",         desc: "Standard agentic payment response for machine commerce.",       delay: "anim-d6" },
+    { Icon: IconFile,   color: "#aaaaaa", bg: "rgba(170,170,170,0.08)", title: "UBL 2.1 Export",          desc: "B2B/PEPPOL-grade invoice compliance for enterprise.",            delay: "anim-d7" },
   ];
 
   const steps = [
@@ -128,7 +128,7 @@ export default function LandingPage() {
           style={{ background: "rgba(26,26,46,0.4)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
           <span className="text-xs" style={{ color: "#aaaaaa" }}>
-            Powered by QVAC + Umbra + Solana · FRS-1 Open Standard
+            Escrow · QVAC AI · Umbra Privacy · Solana · FRS-1 Open Standard
           </span>
         </div>
 
