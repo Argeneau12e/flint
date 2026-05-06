@@ -1,9 +1,15 @@
-import { REPUTATION_TIERS } from "@/lib/reputation";
+import { REPUTATION_TIERS, getTierFromPoints } from "@/lib/reputation";
 
 interface ReputationBadgeProps {
   tier: "gray" | "green" | "blue" | "gold";
   size?: "sm" | "md" | "lg";
   showTooltip?: boolean;
+}
+
+// Export for dashboard compatibility
+export function getBadgeTier(points: number): "gray" | "green" | "blue" | "gold" {
+  const tier = getTierFromPoints(points);
+  return tier.toLowerCase() as "gray" | "green" | "blue" | "gold";
 }
 
 const sizeClasses = {
