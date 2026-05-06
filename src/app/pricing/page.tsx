@@ -139,7 +139,9 @@ export default function PricingPage() {
               <div className="flex-1 space-y-3 mb-8">
                 {plan.features.map((feature) => (
                   <div key={feature} className="flex items-center gap-3">
-                    <IconCheck size={18} style={{ color: "#4ade80" }} />
+                    <span style={{ color: "#4ade80" }}>
+                      <IconCheck size={18} />
+                    </span>
                     <span className="text-sm" style={{ color: "#aaa" }}>{feature}</span>
                   </div>
                 ))}
