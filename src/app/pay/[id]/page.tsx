@@ -206,12 +206,12 @@ export default function PayPage() {
             <span
               className="text-xs px-3 py-1.5 rounded-full font-medium"
               style={{
-                background: `${getStatusColor(invoice.status)}15`,
-                color: getStatusColor(invoice.status),
-                border: `1px solid ${getStatusColor(invoice.status)}30`,
+                background: hasFunded ? 'rgba(59,130,246,0.15)' : `${getStatusColor(invoice.status)}15`,
+                color: hasFunded ? '#3b82f6' : getStatusColor(invoice.status),
+                border: hasFunded ? '1px solid rgba(59,130,246,0.3)' : `1px solid ${getStatusColor(invoice.status)}30`,
               }}
             >
-              {getStatusLabel(invoice.status)}
+              {hasFunded ? 'Funded - Waiting Delivery' : getStatusLabel(invoice.status)}
             </span>
           </div>
 
@@ -283,8 +283,8 @@ export default function PayPage() {
             </div>
           )}
 
-          {/* Action Button */}
-          {(invoice.status === "pending_acceptance" || invoice.status === "draft") && (
+          {/* Action Button - Only show if NOT funded */}
+          {!hasFunded && (invoice.status === "pending_acceptance" || invoice.status === "draft") && (
             <button
               onClick={handleAccept}
               disabled={paying}
@@ -295,13 +295,13 @@ export default function PayPage() {
             </button>
           )}
 
-          {invoice.status === "draft" && (
+          {!hasFunded && invoice.status === "draft" && (
             <p className="text-xs text-center mt-3" style={{ color: "#888" }}>
               This invoice is in draft status. Connect wallet to accept.
             </p>
           )}
 
-          {invoice.status === "accepted_waiting_funding" && walletConnected && (
+          {!hasFunded && invoice.status === "accepted_waiting_funding" && walletConnected && (
             <button
               onClick={() => router.push(`/pay/${id}/fund`)}
               className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 liquid-btn"
@@ -312,13 +312,42 @@ export default function PayPage() {
           )}
 
           {(invoice.status === "funded_active" || hasFunded) && (
-            <div className="text-center p-4 rounded-xl" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
-              <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Escrow Funded - Waiting Delivery</p>
-              <p className="text-xs mt-1" style={{ color: "#888" }}>The seller has been notified to deliver the work.</p>
+            <div className="space-y-3">
+              <div className="text-center p-4 rounded-xl" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Escrow Funded - Waiting Delivery</p>
+                <p className="text-xs mt-1" style={{ color: "#888" }}>The seller has been notified to deliver the work.</p>
+              </div>
+              {/* Seller: Mark as Delivered button */}
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/escrow/deliver', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        escrowId: id,
+                        sellerWallet: userWallet || invoice.creator,
+                      }),
+                    });
+                    if (res.ok) {
+                      alert('Work marked as delivered! Buyer can now review.');
+                      // Set delivered state
+                      sessionStorage.setItem(`delivered_${id}`, 'true');
+                      window.location.reload();
+                    }
+                  } catch (err) {
+                    console.error('Deliver error:', err);
+                  }
+                }}
+                className="w-full py-3 rounded-xl font-medium transition-all"
+                style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#8b5cf6' }}
+              >
+                Mark as Delivered
+              </button>
             </div>
           )}
 
-          {invoice.status === "delivered_review" && (
+          {(invoice.status === "delivered_review" || sessionStorage.getItem(`delivered_${id}`)) && (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl" style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
                 <p className="text-sm font-medium" style={{ color: "#8b5cf6" }}>Work Delivered - Review Period</p>
@@ -326,14 +355,55 @@ export default function PayPage() {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => router.push(`/pay/${id}/review`)}
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/escrow/release', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          escrowId: id,
+                          approverWallet: userWallet,
+                          reason: 'buyer_approved',
+                        }),
+                      });
+                      if (res.ok) {
+                        alert('Payment released to seller!');
+                        sessionStorage.setItem(`released_${id}`, 'true');
+                        window.location.reload();
+                      }
+                    } catch (err) {
+                      console.error('Release error:', err);
+                    }
+                  }}
                   className="flex-1 py-3 rounded-xl font-medium transition-all"
                   style={{ background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80" }}
                 >
-                  Approve
+                  Approve & Release
                 </button>
                 <button
-                  onClick={() => router.push(`/pay/${id}/dispute`)}
+                  onClick={async () => {
+                    const reason = prompt('Describe the issue:');
+                    if (reason) {
+                      try {
+                        const res = await fetch('/api/escrow/dispute', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            escrowId: id,
+                            disputantWallet: userWallet,
+                            reason,
+                          }),
+                        });
+                        if (res.ok) {
+                          alert('Dispute opened. AI review will begin.');
+                          sessionStorage.setItem(`disputed_${id}`, 'true');
+                          window.location.reload();
+                        }
+                      } catch (err) {
+                        console.error('Dispute error:', err);
+                      }
+                    }
+                  }}
                   className="flex-1 py-3 rounded-xl font-medium transition-all"
                   style={{ background: "rgba(255,68,68,0.15)", border: "1px solid rgba(255,68,68,0.3)", color: "#ff4444" }}
                 >
@@ -343,10 +413,10 @@ export default function PayPage() {
             </div>
           )}
 
-          {["released_complete", "auto_approved", "auto_cancelled", "refunded", "disputed"].includes(invoice.status) && (
-            <div className={`text-center p-4 rounded-xl`} style={{ background: `${getStatusColor(invoice.status)}15`, border: `1px solid ${getStatusColor(invoice.status)}30` }}>
-              <p className="text-sm font-medium" style={{ color: getStatusColor(invoice.status) }}>
-                {getStatusLabel(invoice.status)}
+          {(sessionStorage.getItem(`released_${id}`) || sessionStorage.getItem(`disputed_${id}`)) && (
+            <div className="text-center p-4 rounded-xl" style={{ background: sessionStorage.getItem(`released_${id}`) ? 'rgba(74,222,128,0.15)' : 'rgba(255,68,68,0.15)', border: sessionStorage.getItem(`released_${id}`) ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,68,68,0.3)' }}>
+              <p className="text-sm font-medium" style={{ color: sessionStorage.getItem(`released_${id}`) ? '#4ade80' : '#ff4444' }}>
+                {sessionStorage.getItem(`released_${id}`) ? 'Payment Released - Complete!' : 'Dispute Opened - AI Review Pending'}
               </p>
             </div>
           )}
