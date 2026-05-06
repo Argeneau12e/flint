@@ -215,7 +215,9 @@ export default function AnalyticsPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${item.color}20` }}>
-                    <IconCheck size={14} style={{ color: item.color }} />
+                    <span style={{ color: item.color }}>
+                      <IconCheck size={14} />
+                    </span>
                   </div>
                   <div>
                     <p className="text-sm font-medium" style={{ color: "#f7f7f5" }}>{item.action}</p>
