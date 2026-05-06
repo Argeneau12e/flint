@@ -23,8 +23,8 @@ export default function TestPage() {
     setResult(null);
 
     try {
-      let response;
-      let url;
+      let response: Response;
+      let url: string;
 
       if (testType === "qvac") {
         url = `${baseUrl}/api/qvac-status`;
@@ -53,6 +53,8 @@ export default function TestPage() {
             privateMode: true,
           }),
         });
+      } else {
+        throw new Error("Invalid test type");
       }
 
       const data = await response.json();
