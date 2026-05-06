@@ -22,9 +22,10 @@ interface EscrowInvoice {
   feeAmount: number;
   totalAmount: number;
   createdAt: number;
-  acceptanceDeadline: number;
-  fundingDeadline: number;
-  reviewDeadline: number;
+  acceptanceDeadline?: number;
+  fundingDeadline?: number;
+  reviewDeadline?: number;
+  expiresAt?: number;
 }
 
 export default function PayPage() {
@@ -243,8 +244,8 @@ export default function PayPage() {
 
             <div>
               <div className="text-xs mb-1" style={{ color: "#666" }}>Acceptance Deadline</div>
-              <div className="text-sm" style={{ color: formatDeadline(invoice.acceptanceDeadline) === "Expired" ? "#ff4444" : "#888" }}>
-                {formatDeadline(invoice.acceptanceDeadline)}
+              <div className="text-sm" style={{ color: invoice.acceptanceDeadline && formatDeadline(invoice.acceptanceDeadline) === "Expired" ? "#ff4444" : "#888" }}>
+                {invoice.acceptanceDeadline ? formatDeadline(invoice.acceptanceDeadline) : '7 days'}
               </div>
             </div>
           </div>

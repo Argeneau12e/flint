@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
       // Insert into invoices table (for backward compatibility)
+      // Note: Only use columns that exist in Supabase schema
       const { error: invoiceError } = await supabase
         .from('invoices')
         .insert([{
@@ -111,11 +112,14 @@ export async function POST(req: NextRequest) {
           status: EscrowState.PENDING_ACCEPTANCE,
           fee_amount: Number(firstInvoiceDiscount.finalFee),
           total_amount: Number(amount) + Number(firstInvoiceDiscount.finalFee),
-          acceptance_deadline: new Date(acceptanceDeadline).toISOString(),
-          funding_deadline: new Date(fundingDeadline).toISOString(),
-          review_deadline: new Date(reviewDeadline).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          // Deadlines stored in JSON metadata for now (until schema updated)
+          metadata: {
+            acceptanceDeadline,
+            fundingDeadline,
+            reviewDeadline,
+          },
         }]);
       
       if (invoiceError) {
