@@ -90,7 +90,7 @@ function CreatePageInner() {
 
   const tokens = [
     { id: "USDC", label: "USDC",  icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png", desc: "USD Coin" },
-    { id: "USDT", label: "USDT",  icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png", desc: "Tether USD" },
+    { id: "USDT", label: "USDT",  icon: "https://assets.coingecko.com/coins/images/325/thumb/Tether-logo.png?1696501661", desc: "Tether USD" },
     { id: "SOL",  label: "SOL",   icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png", desc: "Solana" },
   ];
 
