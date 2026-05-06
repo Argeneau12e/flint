@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Map Supabase fields to expected invoice structure
-      // Use minimal fields - calculate deadlines from created_at
+      // Handle minimal schema - use defaults for missing fields
       const createdAt = invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now();
       
       const mappedInvoice = {
@@ -67,15 +67,14 @@ export async function GET(req: NextRequest) {
         memo: invoice.memo || invoice.description || '',
         recipientWallet: invoice.recipient_wallet || invoice.recipient || '',
         createdAt: createdAt,
-        expiresAt: createdAt + (7 * 24 * 60 * 60 * 1000), // 7 days from creation
-        status: invoice.status || 'draft',
+        expiresAt: createdAt + (7 * 24 * 60 * 60 * 1000),
+        status: invoice.status || 'pending_acceptance',
         condition: invoice.condition || '',
         escrowAddress: invoice.escrow_address || '',
         webhookUrl: invoice.webhook_url || '',
         txSignature: invoice.tx_signature || '',
         payerWallet: invoice.payer_wallet || '',
         paidAt: invoice.paid_at ? new Date(invoice.paid_at).getTime() : 0,
-        // Calculate deadlines from created_at
         acceptanceDeadline: createdAt + (7 * 24 * 60 * 60 * 1000),
         fundingDeadline: createdAt + (3 * 24 * 60 * 60 * 1000),
         reviewDeadline: createdAt + (7 * 24 * 60 * 60 * 1000),

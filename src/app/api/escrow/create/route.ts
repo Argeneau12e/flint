@@ -97,20 +97,14 @@ export async function POST(req: NextRequest) {
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
-      // Insert into invoices table - MINIMAL columns only
+      // Insert into invoices table - ABSOLUTE MINIMUM columns only
       const { error: invoiceError } = await supabase
         .from('invoices')
         .insert([{
           id: escrowId,
-          creator_user_id: null,
           recipient_wallet: buyerWallet,
           amount: Number(amount),
-          token: token,
-          title: title || 'Invoice',
-          description: description || '',
-          status: 'pending_acceptance',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         }]);
       
       if (invoiceError) {
