@@ -28,25 +28,51 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (error || !invoice) {
-        // Invoice not found in Supabase - might be old KV-based invoice
-        // Return a basic structure so the page doesn't break
+        // Invoice not found in Supabase - return empty but valid structure
         return NextResponse.json({
           invoice: {
             id,
-            title: 'Invoice',
+            title: '',
             amount: 0,
             token: 'USDC',
-            status: 'not_found',
+            memo: '',
+            recipientWallet: '',
             createdAt: Date.now(),
             expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+            status: 'not_found',
+            condition: '',
+            escrowAddress: '',
+            webhookUrl: '',
+            txSignature: '',
+            payerWallet: '',
+            paidAt: 0,
           },
           status: 'not_found',
         });
       }
 
-      return NextResponse.json({
-        invoice,
+      // Map Supabase fields to expected invoice structure
+      const mappedInvoice = {
+        id: invoice.id || id,
+        title: invoice.title || 'Invoice',
+        amount: Number(invoice.amount) || 0,
+        token: invoice.token || 'USDC',
+        memo: invoice.memo || invoice.description || '',
+        recipientWallet: invoice.recipient_wallet || invoice.recipient || '',
+        createdAt: invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now(),
+        expiresAt: invoice.expires_at ? new Date(invoice.expires_at).getTime() : (Date.now() + 7 * 24 * 60 * 60 * 1000),
         status: invoice.status || 'draft',
+        condition: invoice.condition || '',
+        escrowAddress: invoice.escrow_address || '',
+        webhookUrl: invoice.webhook_url || '',
+        txSignature: invoice.tx_signature || '',
+        payerWallet: invoice.payer_wallet || '',
+        paidAt: invoice.paid_at ? new Date(invoice.paid_at).getTime() : 0,
+      };
+
+      return NextResponse.json({
+        invoice: mappedInvoice,
+        status: mappedInvoice.status,
       });
     }
 
