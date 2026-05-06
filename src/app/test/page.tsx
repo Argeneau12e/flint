@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function TestPage() {
   const [testType, setTestType] = useState<"qvac" | "escrow" | "private-pay">("qvac");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+
+  // Get base URL only on client side
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
 
   // Test form state
   const [invoiceId, setInvoiceId] = useState("test-invoice-123");
@@ -15,7 +21,14 @@ export default function TestPage() {
   const [recipient, setRecipient] = useState("8xKz...test");
   const [conditions, setConditions] = useState("Deliver by May 15");
 
-  const baseUrl = window.location.origin;
+  // Don't render until we have base URL (client-side)
+  if (!baseUrl) {
+    return (
+      <main className="min-h-screen px-5 sm:px-8 py-10 flex items-center justify-center" style={{ background: "#0f0f0f", color: "#f7f7f5" }}>
+        <div>Loading...</div>
+      </main>
+    );
+  }
 
   const runTest = async () => {
     setLoading(true);
