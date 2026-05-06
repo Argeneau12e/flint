@@ -12,6 +12,7 @@ import {
   createInMemorySigner,
 } from "@umbra-privacy/sdk";
 import { getCreateReceiverClaimableUtxoFromPublicBalanceProver } from "@umbra-privacy/web-zk-prover";
+import { address } from "@solana/kit";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -229,8 +230,8 @@ Should this be paid autonomously? Respond with JSON: {"shouldPay": boolean, "rea
         );
 
         const utxoSignature = await createUtxo({
-          destinationAddress: invoice.recipientWallet,
-          mint,
+          destinationAddress: address(invoice.recipientWallet),
+          mint: address(mint),
           amount: amountSmallestUnits,
         });
 

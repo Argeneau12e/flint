@@ -5,6 +5,7 @@ import {
   getPublicBalanceToReceiverClaimableUtxoCreatorFunction,
 } from "@umbra-privacy/sdk";
 import { getCreateReceiverClaimableUtxoFromPublicBalanceProver } from "@umbra-privacy/web-zk-prover";
+import { address } from "@solana/kit";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -109,8 +110,8 @@ export async function POST(req: NextRequest) {
 
     // Create the private payment UTXO
     const utxoSignature = await createUtxo({
-      destinationAddress: recipient,
-      mint,
+      destinationAddress: address(recipient),
+      mint: address(mint),
       amount: amountSmallestUnits,
     });
 
