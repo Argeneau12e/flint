@@ -40,6 +40,18 @@ export const FEE_CAPS = {
   CAP_100K: { threshold: 100000, cap: 400 }, // >$100K → cap at $400
 };
 
+// Minimums (in USD)
+export const MINIMUMS = {
+  MIN_INVOICE_USD: 5, // Minimum invoice amount
+  MIN_FEE_USD: 0.50, // Minimum fee (ensures profitability)
+};
+
+// SOL price config
+export const SOL_PRICE_CONFIG = {
+  COINGECKO_URL: 'https://api.coingecko.com/api/v3/simple/price',
+  CACHE_DURATION_MS: 60000, // 1 minute cache
+};
+
 // Escrow PDA seed prefix
 export const ESCROW_PDA_SEED = 'flint_escrow';
 

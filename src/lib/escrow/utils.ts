@@ -1,12 +1,57 @@
-import { FEE_TIERS, FEE_CAPS, ESCROW_TIMEOUTS, EscrowState } from './types';
+import { FEE_TIERS, FEE_CAPS, ESCROW_TIMEOUTS, EscrowState, MINIMUMS, SOL_PRICE_CONFIG } from './types';
+
+// SOL price cache
+let solPriceCache: { price: number; timestamp: number } | null = null;
 
 /**
- * Calculate Flint fee based on amount and tier
+ * Fetch SOL price from CoinGecko (cached)
  */
-export function calculateFee(amount: number, tier: keyof typeof FEE_TIERS = 'FREE'): {
+export async function getSOLPrice(): Promise<number> {
+  // Return cached price if fresh (< 1 min)
+  if (solPriceCache && Date.now() - solPriceCache.timestamp < SOL_PRICE_CONFIG.CACHE_DURATION_MS) {
+    return solPriceCache.price;
+  }
+
+  try {
+    const response = await fetch(`${SOL_PRICE_CONFIG.COINGECKO_URL}?ids=solana&vs_currencies=usd`);
+    const data = await response.json();
+    const price = data.solana?.usd || 175; // Fallback to $175
+    
+    solPriceCache = { price, timestamp: Date.now() };
+    return price;
+  } catch {
+    return solPriceCache?.price || 175; // Fallback
+  }
+}
+
+/**
+ * Validate minimum invoice amount
+ */
+export function validateMinimumAmount(amountUsd: number): {
+  valid: boolean;
+  error?: string;
+} {
+  if (amountUsd < MINIMUMS.MIN_INVOICE_USD) {
+    return {
+      valid: false,
+      error: `Minimum invoice amount is $${MINIMUMS.MIN_INVOICE_USD} USD`,
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Calculate Flint fee based on amount and tier (with minimums)
+ */
+export function calculateFee(
+  amount: number,
+  tier: keyof typeof FEE_TIERS = 'FREE',
+  amountUsd?: number
+): {
   fee: number;
   effectiveRate: number;
   capApplied: boolean;
+  minimumApplied: boolean;
 } {
   const tierConfig = FEE_TIERS[tier];
   const rawFee = amount * tierConfig.rate;
@@ -14,6 +59,7 @@ export function calculateFee(amount: number, tier: keyof typeof FEE_TIERS = 'FRE
   // Check fee caps
   let finalFee = rawFee;
   let capApplied = false;
+  let minimumApplied = false;
   let effectiveRate = tierConfig.rate;
   
   if (amount >= FEE_CAPS.CAP_100K.threshold) {
@@ -26,30 +72,46 @@ export function calculateFee(amount: number, tier: keyof typeof FEE_TIERS = 'FRE
     capApplied = true;
   }
   
+  // Apply minimum fee (for small amounts)
+  if (finalFee < MINIMUMS.MIN_FEE_USD) {
+    finalFee = MINIMUMS.MIN_FEE_USD;
+    effectiveRate = finalFee / (amountUsd || amount);
+    minimumApplied = true;
+  }
+  
   return {
-    fee: Math.round(finalFee),
+    fee: Number(finalFee.toFixed(2)),
     effectiveRate,
     capApplied,
+    minimumApplied,
   };
 }
 
 /**
  * Calculate total amount (amount + fee)
  */
-export function calculateTotal(amount: number, tier?: keyof typeof FEE_TIERS): {
+export function calculateTotal(
+  amount: number,
+  tier?: keyof typeof FEE_TIERS,
+  amountUsd?: number
+): {
   amount: number;
   fee: number;
   total: number;
   tier: string;
+  minimumApplied: boolean;
+  capApplied: boolean;
 } {
-  const { fee, effectiveRate, capApplied } = calculateFee(amount, tier);
+  const { fee, effectiveRate, capApplied, minimumApplied } = calculateFee(amount, tier, amountUsd);
   const tierConfig = FEE_TIERS[tier || 'FREE'];
   
   return {
     amount,
     fee,
-    total: amount + fee,
+    total: Number((amount + fee).toFixed(2)),
     tier: tierConfig.name,
+    minimumApplied,
+    capApplied,
   };
 }
 
