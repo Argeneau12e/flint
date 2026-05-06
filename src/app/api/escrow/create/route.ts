@@ -101,7 +101,14 @@ export async function POST(req: NextRequest) {
           recipient_wallet: recipient,
           amount: amount,
           token: token,
-          status: 'draft',
+          title: title || 'Invoice',
+          description: description || '',
+          status: EscrowState.PENDING_ACCEPTANCE,
+          fee_amount: firstInvoiceDiscount.finalFee,
+          total_amount: amount + firstInvoiceDiscount.finalFee,
+          acceptance_deadline: new Date(acceptanceDeadline).toISOString(),
+          funding_deadline: new Date(fundingDeadline).toISOString(),
+          review_deadline: new Date(reviewDeadline).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }]);
@@ -126,9 +133,9 @@ export async function POST(req: NextRequest) {
         tier: feeTier,
       },
       deadlines: {
-        acceptance: new Date(acceptanceDeadline * 1000).toISOString(),
-        funding: new Date(fundingDeadline * 1000).toISOString(),
-        review: new Date(reviewDeadline * 1000).toISOString(),
+        acceptance: new Date(acceptanceDeadline).toISOString(),
+        funding: new Date(fundingDeadline).toISOString(),
+        review: new Date(reviewDeadline).toISOString(),
       },
     });
   } catch (error: any) {
