@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
       }
 
       // Map Supabase fields to expected invoice structure
-      // Deadlines may be in metadata JSON field
-      const metadata = invoice.metadata ? (typeof invoice.metadata === 'string' ? JSON.parse(invoice.metadata) : invoice.metadata) : {};
+      // Use minimal fields - calculate deadlines from created_at
+      const createdAt = invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now();
       
       const mappedInvoice = {
         id: invoice.id || id,
@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
         token: invoice.token || 'USDC',
         memo: invoice.memo || invoice.description || '',
         recipientWallet: invoice.recipient_wallet || invoice.recipient || '',
-        createdAt: invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now(),
-        expiresAt: metadata.acceptanceDeadline || (Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: createdAt,
+        expiresAt: createdAt + (7 * 24 * 60 * 60 * 1000), // 7 days from creation
         status: invoice.status || 'draft',
         condition: invoice.condition || '',
         escrowAddress: invoice.escrow_address || '',
@@ -75,10 +75,10 @@ export async function GET(req: NextRequest) {
         txSignature: invoice.tx_signature || '',
         payerWallet: invoice.payer_wallet || '',
         paidAt: invoice.paid_at ? new Date(invoice.paid_at).getTime() : 0,
-        // Escrow deadlines
-        acceptanceDeadline: metadata.acceptanceDeadline || 0,
-        fundingDeadline: metadata.fundingDeadline || 0,
-        reviewDeadline: metadata.reviewDeadline || 0,
+        // Calculate deadlines from created_at
+        acceptanceDeadline: createdAt + (7 * 24 * 60 * 60 * 1000),
+        fundingDeadline: createdAt + (3 * 24 * 60 * 60 * 1000),
+        reviewDeadline: createdAt + (7 * 24 * 60 * 60 * 1000),
       };
 
       return NextResponse.json({
