@@ -38,6 +38,7 @@ export default function PayPage() {
   const [paying, setPaying] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [userWallet, setUserWallet] = useState("");
+  const [hasFunded, setHasFunded] = useState(false);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -46,15 +47,20 @@ export default function PayPage() {
         const data = await res.json();
         if (data.escrow) {
           setInvoice(data.escrow);
-        } else {
-          setError("Invoice not found");
         }
       } catch (err) {
-        setError("Failed to load invoice");
+        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
+
+    // Check if we just funded (from fund page redirect)
+    const justFunded = sessionStorage.getItem(`funded_${id}`);
+    if (justFunded) {
+      setHasFunded(true);
+      sessionStorage.removeItem(`funded_${id}`);
+    }
 
     fetchInvoice();
   }, [id]);
@@ -305,7 +311,7 @@ export default function PayPage() {
             </button>
           )}
 
-          {invoice.status === "funded_active" && (
+          {(invoice.status === "funded_active" || hasFunded) && (
             <div className="text-center p-4 rounded-xl" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
               <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Escrow Funded - Waiting Delivery</p>
               <p className="text-xs mt-1" style={{ color: "#888" }}>The seller has been notified to deliver the work.</p>

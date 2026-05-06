@@ -94,6 +94,8 @@ export default function FundPage() {
       const data = await res.json();
       if (data.success || res.ok) {
         console.log('Fund success');
+        // Mark as funded in session storage
+        sessionStorage.setItem(`funded_${id}`, 'true');
         // Redirect to pay page
         router.push(`/pay/${id}`);
       } else {
