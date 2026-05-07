@@ -24,31 +24,34 @@ export async function GET(req: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     const { data: escrow, error } = await supabase
-      .from('invoices')
+      .from('escrows')
       .select('*')
       .eq('id', id)
       .single();
 
     if (error || !escrow) {
+      console.error('Escrow lookup error:', error);
       return NextResponse.json({ error: 'Escrow not found' }, { status: 404 });
     }
 
-    // Map to escrow structure
+    // Map to escrow structure (using new schema field names)
     const escrowData = {
       id: escrow.id,
       title: escrow.title || 'Invoice',
       amount: Number(escrow.amount) || 0,
-      token: escrow.token || 'USDC',
-      memo: escrow.memo || escrow.description || '',
-      creator: escrow.creator || escrow.recipient_wallet || '',
-      recipient: escrow.recipient || '',
-      status: escrow.status || 'draft',
+      token: escrow.token_symbol || 'USDC',
+      description: escrow.description || '',
+      creator: escrow.creator_wallet || '',
+      recipient: escrow.buyer_wallet || '',
+      status: escrow.state || 'draft',
+      state: escrow.state || 'draft',
       feeAmount: Number(escrow.fee_amount) || 0,
       totalAmount: Number(escrow.total_amount) || Number(escrow.amount) || 0,
       createdAt: escrow.created_at ? new Date(escrow.created_at).getTime() : Date.now(),
       acceptanceDeadline: escrow.acceptance_deadline ? new Date(escrow.acceptance_deadline).getTime() : 0,
       fundingDeadline: escrow.funding_deadline ? new Date(escrow.funding_deadline).getTime() : 0,
       reviewDeadline: escrow.review_deadline ? new Date(escrow.review_deadline).getTime() : 0,
+      version: escrow.version || 1,
     };
 
     return NextResponse.json({
