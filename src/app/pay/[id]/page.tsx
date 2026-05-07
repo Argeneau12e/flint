@@ -390,6 +390,12 @@ export default function PayPage() {
               <div className="flex gap-3">
                 <button
                   onClick={async () => {
+                    // Connect wallet first if not connected
+                    if (!walletConnected) {
+                      await connectWallet();
+                      if (!walletConnected) return; // User cancelled or failed
+                    }
+                    
                     try {
                       console.log('Release click:', { escrowId: id, userWallet });
                       const res = await fetch('/api/escrow/release', {
