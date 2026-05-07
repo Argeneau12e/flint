@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import Comments from "@/components/invoice/Comments";
+import FeeDisclosureModal from "@/components/escrow/FeeDisclosureModal";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -23,6 +24,9 @@ interface EscrowInvoice {
   recipient: string;
   status: string;
   feeAmount: number;
+  feeOriginal?: number; // Original fee before discount
+  feeDiscount?: number; // Discount amount
+  isFirstInvoice?: boolean; // Is this user's first invoice
   totalAmount: number;
   createdAt: number;
   acceptanceDeadline?: number;
@@ -44,6 +48,7 @@ export default function PayPage() {
   const [hasFunded, setHasFunded] = useState(false); // From session storage
   const [isSeller, setIsSeller] = useState(false); // Detected based on wallet
   const [isBuyer, setIsBuyer] = useState(false); // Detected based on wallet
+  const [showFeeModal, setShowFeeModal] = useState(false); // Fee disclosure modal
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -51,7 +56,16 @@ export default function PayPage() {
         const res = await fetch(`/api/escrow/status?id=${id}`);
         const data = await res.json();
         if (data.escrow) {
-          setInvoice(data.escrow);
+          // Fetch fee breakdown from create API (or calculate it)
+          const feeRes = await fetch(`/api/escrow/create?amount=${data.escrow.amount}&token=${data.escrow.token}&feeTier=FREE`);
+          const feeData = await feeRes.json();
+          
+          setInvoice({
+            ...data.escrow,
+            feeOriginal: feeData.feeBreakdown.originalFee,
+            feeDiscount: feeData.feeBreakdown.discount,
+            isFirstInvoice: feeData.feeBreakdown.isFirstInvoice,
+          });
           
           // Detect user role if wallet is connected
           if (userWallet) {
@@ -337,7 +351,7 @@ export default function PayPage() {
 
           {!hasFunded && invoice.status === "accepted_waiting_funding" && walletConnected && (
             <button
-              onClick={() => router.push(`/pay/${id}/fund`)}
+              onClick={() => setShowFeeModal(true)}
               className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 liquid-btn"
               style={{ fontSize: "15px", minHeight: "54px" }}
             >
@@ -472,6 +486,25 @@ export default function PayPage() {
 
           {/* Comments Section */}
           <Comments invoiceId={id} />
+
+          {/* Fee Disclosure Modal */}
+          {showFeeModal && invoice && (
+            <FeeDisclosureModal
+              amount={invoice.amount}
+              feeAmount={invoice.feeAmount}
+              feeOriginal={invoice.feeOriginal || invoice.feeAmount}
+              feeDiscount={invoice.feeDiscount || 0}
+              totalAmount={invoice.totalAmount}
+              tokenSymbol={invoice.token}
+              isFirstInvoice={invoice.isFirstInvoice || false}
+              feeTier="FREE"
+              onConfirm={() => {
+                setShowFeeModal(false);
+                router.push(`/pay/${id}/fund`);
+              }}
+              onCancel={() => setShowFeeModal(false)}
+            />
+          )}
         </div>
       </div>
     </main>
