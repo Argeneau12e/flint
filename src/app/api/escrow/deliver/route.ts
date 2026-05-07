@@ -76,11 +76,13 @@ export async function POST(req: NextRequest) {
     const reviewDeadline = getDeadlineForState(EscrowState.DELIVERED_REVIEW, Date.now());
 
     // Update escrow: transition to DELIVERED_REVIEW
+    const deliveredAt = new Date().toISOString();
+    
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         state: EscrowState.DELIVERED_REVIEW,
-        delivered_at: Date.now(),
+        delivered_at: deliveredAt,
         review_deadline: reviewDeadline,
         dispute_evidence: deliveryData ? JSON.stringify(deliveryData) : null,
       })
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
       escrow: {
         id: escrowId,
         state: EscrowState.DELIVERED_REVIEW,
-        delivered_at: Date.now(),
+        delivered_at: deliveredAt,
         review_deadline: reviewDeadline,
       },
     });

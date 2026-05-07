@@ -68,12 +68,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Update escrow: bind buyer wallet and transition state
+    const acceptedAt = new Date().toISOString(); // PostgreSQL expects ISO string for TIMESTAMPTZ
+    
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         buyer_wallet: buyerWallet,
         state: EscrowState.ACCEPTED_WAITING_FUNDING,
-        accepted_at: Date.now(),
+        accepted_at: acceptedAt,
       })
       .eq('id', escrowId);
 

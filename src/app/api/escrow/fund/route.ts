@@ -78,11 +78,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Update escrow: transition to FUNDED_ACTIVE
+    const fundedAt = new Date().toISOString();
+    
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         state: EscrowState.FUNDED_ACTIVE,
-        funded_at: Date.now(),
+        funded_at: fundedAt,
         tx_signature: txSignature || null,
       })
       .eq('id', escrowId);
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
       escrow: {
         id: escrowId,
         state: EscrowState.FUNDED_ACTIVE,
-        funded_at: Date.now(),
+        funded_at: fundedAt,
         tx_signature: txSignature,
       },
       mode: isDemoMode ? 'demo' : 'production',

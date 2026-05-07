@@ -95,11 +95,15 @@ export async function POST(req: NextRequest) {
     };
 
     // Update escrow: transition to final state
+    const resolvedAt = new Date().toISOString();
+    // Update the resolution object with proper timestamp
+    disputeResolution.resolvedAt = resolvedAt;
+    
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         state: nextState,
-        resolved_at: Date.now(),
+        resolved_at: resolvedAt,
         dispute_resolution: JSON.stringify(disputeResolution),
       })
       .eq('id', escrowId);
@@ -125,7 +129,7 @@ export async function POST(req: NextRequest) {
       escrow: {
         id: escrowId,
         state: nextState,
-        resolved_at: Date.now(),
+        resolved_at: resolvedAt,
       },
       resolution: disputeResolution,
     });

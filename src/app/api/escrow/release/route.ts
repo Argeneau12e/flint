@@ -77,12 +77,14 @@ export async function POST(req: NextRequest) {
     // For demo mode, we just update the database
 
     // Update escrow: transition to RELEASED_COMPLETE or AUTO_APPROVED
+    const releasedAt = new Date().toISOString();
+    
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         state: nextState,
-        released_at: Date.now(),
-        resolved_at: Date.now(),
+        released_at: releasedAt,
+        resolved_at: releasedAt,
         auto_approved: isAutoApprove,
       })
       .eq('id', escrowId);
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
       escrow: {
         id: escrowId,
         state: nextState,
-        released_at: Date.now(),
+        released_at: releasedAt,
       },
       amount: escrow.amount,
       fee: escrow.fee_amount,

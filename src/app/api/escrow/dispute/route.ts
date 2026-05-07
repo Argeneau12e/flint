@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
         id: escrowId,
         state: EscrowState.DISPUTED,
         dispute_reason: reason,
-        opened_at: Date.now(),
+        opened_at: new Date().toISOString(),
       },
       next_steps: {
         description: 'Both parties can submit evidence. AI will analyze and recommend resolution.',
