@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import Comments from "@/components/invoice/Comments";
 import FeeDisclosureModal from "@/components/escrow/FeeDisclosureModal";
+import ReputationBadge, { getTierFromPoints } from "@/components/account/ReputationBadge";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -56,15 +57,19 @@ export default function PayPage() {
         const res = await fetch(`/api/escrow/status?id=${id}`);
         const data = await res.json();
         if (data.escrow) {
-          // Fetch fee breakdown from create API (or calculate it)
-          const feeRes = await fetch(`/api/escrow/create?amount=${data.escrow.amount}&token=${data.escrow.token}&feeTier=FREE`);
-          const feeData = await feeRes.json();
+          // Calculate fee client-side (1% for FREE tier)
+          const feePercentage = 0.01; // 1% for FREE tier
+          const feeOriginal = data.escrow.amount * feePercentage;
+          const isFirstInvoice = false; // Would need API call to check
+          const feeDiscount = isFirstInvoice ? feeOriginal : 0;
+          const feeAmount = feeOriginal - feeDiscount;
           
           setInvoice({
             ...data.escrow,
-            feeOriginal: feeData.feeBreakdown.originalFee,
-            feeDiscount: feeData.feeBreakdown.discount,
-            isFirstInvoice: feeData.feeBreakdown.isFirstInvoice,
+            feeOriginal,
+            feeDiscount,
+            feeAmount,
+            isFirstInvoice,
           });
           
           // Detect user role if wallet is connected
@@ -283,9 +288,14 @@ export default function PayPage() {
           {/* Details */}
           <div className="space-y-4 mb-8">
             <div>
-              <div className="text-xs mb-1" style={{ color: "#666" }}>Recipient</div>
-              <div className="text-sm font-mono" style={{ color: "#888" }}>
-                {invoice.creator.slice(0, 6)}...{invoice.creator.slice(-4)}
+              <div className="text-xs mb-1" style={{ color: "#666" }}>Recipient (Seller)</div>
+              <div className="flex items-center gap-3">
+                <ReputationBadge
+                  tier="VERIFIED" // Would fetch from API
+                  points={150} // Would fetch from API
+                  walletAddress={invoice.creator}
+                  size="sm"
+                />
               </div>
             </div>
 

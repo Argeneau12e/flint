@@ -1,46 +1,92 @@
-import { REPUTATION_TIERS, getTierFromPoints } from "@/lib/reputation";
+"use client";
 
 interface ReputationBadgeProps {
-  tier: "gray" | "green" | "blue" | "gold";
+  points?: number;
+  tier?: "NEWCOMER" | "VERIFIED" | "PRO" | "EXPERT";
+  walletAddress?: string;
   size?: "sm" | "md" | "lg";
   showTooltip?: boolean;
 }
 
-// Export for dashboard compatibility
-export function getBadgeTier(points: number): "gray" | "green" | "blue" | "gold" {
-  const tier = getTierFromPoints(points);
-  return tier.toLowerCase() as "gray" | "green" | "blue" | "gold";
-}
+export default function ReputationBadge({
+  points = 0,
+  tier = "NEWCOMER",
+  walletAddress,
+  size = "md",
+  showTooltip = true,
+}: ReputationBadgeProps) {
+  // Determine badge color and label based on tier
+  const getBadgeInfo = (t: string) => {
+    switch (t) {
+      case "EXPERT":
+        return { color: "#FFD700", label: "Expert", icon: "🏆" };
+      case "PRO":
+        return { color: "#4A90D9", label: "Pro", icon: "⭐" };
+      case "VERIFIED":
+        return { color: "#4ade80", label: "Verified", icon: "✓" };
+      default:
+        return { color: "#888888", label: "Newcomer", icon: "🌱" };
+    }
+  };
 
-const sizeClasses = {
-  sm: "w-3 h-3",
-  md: "w-4 h-4",
-  lg: "w-5 h-5",
-};
+  const badge = getBadgeInfo(tier);
+  
+  const sizeClasses = {
+    sm: "w-5 h-5 text-xs",
+    md: "w-7 h-7 text-sm",
+    lg: "w-10 h-10 text-lg",
+  };
 
-const badgeLabels = {
-  gray: "Newcomer",
-  green: "Verified",
-  blue: "Pro",
-  gold: "Expert",
-};
-
-export default function ReputationBadge({ tier, size = "md", showTooltip = true }: ReputationBadgeProps) {
-  const color = REPUTATION_TIERS[tier.toUpperCase() as "GRAY" | "GREEN" | "BLUE" | "GOLD"]?.color || "#888888";
+  const badgeContent = (
+    <div
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold`}
+      style={{
+        background: `linear-gradient(135deg, ${badge.color} 0%, ${badge.color}cc 100%)`,
+        color: "#000",
+        boxShadow: `0 2px 8px ${badge.color}66`,
+      }}
+      title={showTooltip ? `${badge.label} - ${points} points` : undefined}
+    >
+      {badge.icon}
+    </div>
+  );
 
   return (
-    <span
-      className={`inline-flex items-center justify-center ${sizeClasses[size]} rounded-full relative group`}
-      style={{
-        background: `${color}20`,
-        border: `1px solid ${color}`,
-      }}
-      title={showTooltip ? `${badgeLabels[tier]} (${tier})` : ""}
-    >
-      {/* Star icon */}
-      <svg width="12" height="12" viewBox="0 0 24 24" fill={color}>
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-      </svg>
-    </span>
+    <div className="inline-flex items-center gap-2">
+      {badgeContent}
+      {size !== "sm" && (
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold" style={{ color: badge.color }}>
+            {badge.label}
+          </span>
+          {walletAddress && (
+            <span className="text-xs" style={{ color: "#888" }}>
+              {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   );
+}
+
+/**
+ * Get tier from points
+ */
+export function getTierFromPoints(points: number): "NEWCOMER" | "VERIFIED" | "PRO" | "EXPERT" {
+  if (points >= 501) return "EXPERT";
+  if (points >= 201) return "PRO";
+  if (points >= 51) return "VERIFIED";
+  return "NEWCOMER";
+}
+
+/**
+ * Get points needed for next tier
+ */
+export function getNextTierInfo(currentPoints: number): { nextTier: string; pointsNeeded: number; progress: number } {
+  if (currentPoints >= 501) return { nextTier: "Max", pointsNeeded: 0, progress: 100 };
+  if (currentPoints >= 201) return { nextTier: "EXPERT", pointsNeeded: 501 - currentPoints, progress: ((currentPoints - 201) / 300) * 100 };
+  if (currentPoints >= 51) return { nextTier: "PRO", pointsNeeded: 201 - currentPoints, progress: ((currentPoints - 51) / 150) * 100 };
+  if (currentPoints >= 1) return { nextTier: "VERIFIED", pointsNeeded: 51 - currentPoints, progress: (currentPoints / 51) * 100 };
+  return { nextTier: "VERIFIED", pointsNeeded: 51, progress: 0 };
 }
