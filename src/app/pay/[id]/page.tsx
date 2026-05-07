@@ -18,6 +18,8 @@ interface EscrowInvoice {
   token: string;
   memo: string;
   creator: string;
+  creator_wallet: string;
+  buyer_wallet?: string;
   recipient: string;
   status: string;
   feeAmount: number;
