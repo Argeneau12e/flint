@@ -391,7 +391,7 @@ export default function PayPage() {
                 <button
                   onClick={async () => {
                     try {
-                      console.log('Release click:', { escrowId: id, userWallet, escrow });
+                      console.log('Release click:', { escrowId: id, userWallet });
                       const res = await fetch('/api/escrow/release', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
