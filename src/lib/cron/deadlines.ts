@@ -89,7 +89,7 @@ export async function enforceDeadlines(): Promise<{
  * Check individual escrow and transition if expired
  */
 async function checkAndTransitionEscrow(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   escrow: EscrowRecord,
   now: number
 ): Promise<void> {
