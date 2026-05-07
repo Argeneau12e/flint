@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
-    console.log('Creating escrow:', { escrowId, creator, amount, token, title, hasSupabase: !!(supabaseUrl && supabaseServiceKey) });
+    console.log('Creating escrow:', { creator, amount, token, title, hasSupabase: !!(supabaseUrl && supabaseServiceKey) });
     
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
