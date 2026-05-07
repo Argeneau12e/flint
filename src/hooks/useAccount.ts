@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { getUserByWallet, getUserByUsername } from '@/lib/supabase';
-import { getBadgeTier } from '@/components/account/ReputationBadge';
+import { getTierFromPoints as getBadgeTier } from '@/components/account/ReputationBadge';
 
 export interface UserAccount {
   id: string;
