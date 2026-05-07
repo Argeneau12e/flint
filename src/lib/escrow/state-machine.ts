@@ -32,6 +32,12 @@ export const STATE_TRANSITIONS: Record<EscrowState, StateTransition[]> = {
       requiredRole: 'creator',
       allowedActions: ['send_to_buyer'],
     },
+    {
+      from: EscrowState.DRAFT,
+      to: EscrowState.ACCEPTED_WAITING_FUNDING,
+      requiredRole: 'buyer',
+      allowedActions: ['accept'],
+    },
   ],
   [EscrowState.PENDING_ACCEPTANCE]: [
     {
