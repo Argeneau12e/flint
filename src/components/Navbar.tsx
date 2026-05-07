@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ReputationBadge, { getTierFromPoints } from "./account/ReputationBadge";
+import Logo from "./logo";
 
 interface NavbarProps {
   userWallet?: string;
@@ -79,15 +80,7 @@ export default function Navbar({ userWallet, tier = "FREE", usage }: NavbarProps
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => router.push("/")}
           >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg"
-              style={{ background: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)" }}
-            >
-              F
-            </div>
-            <span className="text-xl font-bold" style={{ color: "#fff" }}>
-              Flint
-            </span>
+            <Logo size={32} variant="icon" />
           </div>
 
           {/* Center - Navigation */}
@@ -107,7 +100,7 @@ export default function Navbar({ userWallet, tier = "FREE", usage }: NavbarProps
               Dashboard
             </button>
             <button
-              onClick={() => router.push("/pricing")}
+              onClick={() => router.push("/#pricing")}
               className="text-sm font-medium transition-colors"
               style={{ color: "#888" }}
             >
