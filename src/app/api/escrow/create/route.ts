@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       
       // Insert into escrows table with full schema
       // Note: Don't pass id - let PostgreSQL generate UUID
-      const { data: insertData, error: escrowError } = await supabase
+      const { data: insertResult, error: escrowError } = await supabase
         .from('escrows')
         .insert([{
           creator_wallet: creator,
@@ -120,7 +120,8 @@ export async function POST(req: NextRequest) {
           review_deadline: reviewDeadline,
           is_first_invoice: firstInvoice,
           created_at: new Date().toISOString(),
-        }]);
+        }])
+        .select('id');
       
       if (escrowError) {
         console.error('Supabase insert error:', escrowError);
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
       } else {
         console.log('Escrow saved to Supabase successfully');
         // Get the auto-generated UUID from the insert result
-        const generatedId = insertData?.[0]?.id || '';
+        const generatedId = insertResult?.[0]?.id || '';
         escrowData.id = generatedId;
       }
     } else {
