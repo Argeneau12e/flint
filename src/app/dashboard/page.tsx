@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import UsernameSignup from "@/components/account/UsernameSignup";
+import UsageTracker from "@/components/UsageTracker";
 import { getUserByWallet, checkUsernameAvailable } from "@/lib/supabase";
 import { getTierFromPoints as getBadgeTier } from "@/components/account/ReputationBadge";
 import {
@@ -450,7 +451,7 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Stat cards */}
+            {/* Stat cards + Usage Tracker */}
             <div className="grid grid-cols-3 gap-3 mb-8">
               {[
                 { label: "Total Earned", value: `${stats.totalEarned}` },
@@ -467,6 +468,16 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ))}
+            </div>
+
+            {/* Usage Tracker */}
+            <div className="mb-8">
+              <UsageTracker
+                tier="FREE"
+                volumeUsd={stats?.totalEarned || 0}
+                invoicesCreated={stats?.total || 0}
+                aiAnalysesCount={0}
+              />
             </div>
 
             {/* Invoice list */}
