@@ -518,7 +518,7 @@ export default function DashboardPage() {
                       if (invoice.status === "paid") {
                         router.push(`/verify/${invoice.txSignature}`);
                       } else {
-                        router.push(`/invoice/${invoice.id}`);
+                        router.push(`/pay/${invoice.id}`);
                       }
                     }}
                   >
