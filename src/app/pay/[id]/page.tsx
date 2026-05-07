@@ -396,8 +396,7 @@ export default function PayPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           escrowId: id,
-                          approverWallet: userWallet,
-                          reason: 'buyer_approved',
+                          buyerWallet: userWallet, // Match backend expectation
                         }),
                       });
                       if (res.ok) {
