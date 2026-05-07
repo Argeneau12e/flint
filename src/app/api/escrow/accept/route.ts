@@ -78,9 +78,14 @@ export async function POST(req: NextRequest) {
       .eq('id', escrowId);
 
     if (updateError) {
-      console.error('Accept update error:', updateError);
+      console.error('Accept update error:', {
+        escrowId,
+        error: updateError,
+        currentState: escrow.state,
+        newState: EscrowState.ACCEPTED_WAITING_FUNDING,
+      });
       return NextResponse.json(
-        { error: 'Failed to accept escrow', details: updateError },
+        { error: 'Failed to accept escrow', details: updateError.message },
         { status: 500 }
       );
     }
