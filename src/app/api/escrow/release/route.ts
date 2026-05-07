@@ -57,9 +57,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify buyer (unless auto-approve)
+    console.log('Release verification:', {
+      escrowBuyer: escrow.buyer_wallet,
+      requestBuyer: buyerWallet,
+      match: escrow.buyer_wallet === buyerWallet,
+      isAutoApprove,
+    });
+    
     if (!isAutoApprove && escrow.buyer_wallet !== buyerWallet) {
       return NextResponse.json(
-        { error: 'Only the buyer can approve release' },
+        { error: 'Only the buyer can approve release', details: { escrowBuyer: escrow.buyer_wallet, requestBuyer: buyerWallet } },
         { status: 403 }
       );
     }

@@ -391,21 +391,27 @@ export default function PayPage() {
                 <button
                   onClick={async () => {
                     try {
+                      console.log('Release click:', { escrowId: id, userWallet, escrow });
                       const res = await fetch('/api/escrow/release', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           escrowId: id,
-                          buyerWallet: userWallet, // Match backend expectation
+                          buyerWallet: userWallet,
                         }),
                       });
+                      const data = await res.json();
+                      console.log('Release response:', res.status, data);
                       if (res.ok) {
                         alert('Payment released to seller!');
                         sessionStorage.setItem(`released_${id}`, 'true');
                         window.location.reload();
+                      } else {
+                        alert('Error: ' + (data.error || 'Failed to release'));
                       }
                     } catch (err) {
                       console.error('Release error:', err);
+                      alert('Error: ' + (err as any).message);
                     }
                   }}
                   className="flex-1 py-3 rounded-xl font-medium transition-all"
