@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import UsernameSignup from "@/components/account/UsernameSignup";
 import { getUserByWallet, checkUsernameAvailable } from "@/lib/supabase";
-import { getBadgeTier } from "@/components/account/ReputationBadge";
+import { getTierFromPoints as getBadgeTier } from "@/components/account/ReputationBadge";
 import {
   getSolanaProvider,
   WALLET_NOT_FOUND_MSG,
