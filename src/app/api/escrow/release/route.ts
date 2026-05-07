@@ -49,9 +49,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate state
+    console.log('Release state check:', {
+      currentState: escrow.state,
+      expected: EscrowState.DELIVERED_REVIEW,
+      isValid: escrow.state === EscrowState.DELIVERED_REVIEW,
+    });
+    
     if (escrow.state !== EscrowState.DELIVERED_REVIEW) {
       return NextResponse.json(
-        { error: `Invalid state for release: ${escrow.state}. Expected: delivered_review` },
+        { error: `Invalid state for release: ${escrow.state}. Expected: delivered_review`, currentStatus: escrow.state },
         { status: 400 }
       );
     }

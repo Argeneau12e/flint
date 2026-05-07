@@ -413,7 +413,11 @@ export default function PayPage() {
                         sessionStorage.setItem(`released_${id}`, 'true');
                         window.location.reload();
                       } else {
-                        alert('Error: ' + (data.error || 'Failed to release'));
+                        // Show detailed error including current state
+                        const errorMsg = data.currentStatus 
+                          ? `Error: ${data.error} (Current state: ${data.currentStatus})`
+                          : `Error: ${data.error}`;
+                        alert(errorMsg);
                       }
                     } catch (err) {
                       console.error('Release error:', err);
