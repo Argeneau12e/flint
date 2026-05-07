@@ -100,7 +100,7 @@ export default function Navbar({ userWallet, tier = "FREE", usage }: NavbarProps
               Dashboard
             </button>
             <button
-              onClick={() => router.push("/#pricing")}
+              onClick={() => router.push("/pricing")}
               className="text-sm font-medium transition-colors"
               style={{ color: "#888" }}
             >
