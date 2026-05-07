@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateFee, calculateTotal, isFirstInvoice, applyFirstInvoiceFree } from '@/lib/escrow/utils';
 import { EscrowState, SUPPORTED_TOKENS, FEE_TIERS, ESCROW_TIMEOUTS } from '@/lib/escrow/types';
+import { getDeadlineForState } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
 
 /**
@@ -58,9 +59,10 @@ export async function POST(req: NextRequest) {
 
     // Calculate deadlines (in milliseconds for frontend compatibility)
     const now = Date.now();
-    const acceptanceDeadline = now + (ESCROW_TIMEOUTS.ACCEPTANCE_TIMEOUT * 1000); // 7 days in ms
-    const fundingDeadline = now + (ESCROW_TIMEOUTS.FUNDING_TIMEOUT * 1000); // 3 days in ms
-    const reviewDeadline = now + (ESCROW_TIMEOUTS.REVIEW_TIMEOUT * 1000); // 7 days in ms
+    // Start in DRAFT state - deadlines calculated when sent to buyer
+    const acceptanceDeadline = getDeadlineForState(EscrowState.PENDING_ACCEPTANCE, now);
+    const fundingDeadline = getDeadlineForState(EscrowState.ACCEPTED_WAITING_FUNDING, now);
+    const reviewDeadline = getDeadlineForState(EscrowState.DELIVERED_REVIEW, now);
 
     // Create escrow record (to be stored in Supabase/on-chain)
     const escrowData = {
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
       isFirstInvoice: firstInvoice,
       feeTier,
       totalAmount: Number(amount) + firstInvoiceDiscount.finalFee,
-      state: EscrowState.PENDING_ACCEPTANCE,
+      state: EscrowState.DRAFT, // Start in DRAFT, not PENDING_ACCEPTANCE
       title,
       description,
       createdAt: now,
@@ -97,21 +99,35 @@ export async function POST(req: NextRequest) {
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
-      // Insert into invoices table - ABSOLUTE MINIMUM columns only
-      const { error: invoiceError } = await supabase
-        .from('invoices')
+      // Insert into escrows table with full schema
+      const { error: escrowError } = await supabase
+        .from('escrows')
         .insert([{
           id: escrowId,
-          recipient_wallet: buyerWallet,
+          creator_wallet: creator,
+          buyer_wallet: buyerWallet,
           amount: Number(amount),
+          token_mint: SUPPORTED_TOKENS[token as keyof typeof SUPPORTED_TOKENS].mint,
+          token_symbol: token,
+          fee_amount: firstInvoiceDiscount.finalFee,
+          fee_original: firstInvoiceDiscount.originalFee,
+          fee_discount: firstInvoiceDiscount.discount,
+          fee_tier: feeTier,
+          total_amount: Number(amount) + firstInvoiceDiscount.finalFee,
+          state: EscrowState.DRAFT,
+          title,
+          description,
+          acceptance_deadline: acceptanceDeadline,
+          funding_deadline: fundingDeadline,
+          review_deadline: reviewDeadline,
+          is_first_invoice: firstInvoice,
           created_at: new Date().toISOString(),
         }]);
       
-      if (invoiceError) {
-        console.error('Supabase insert error:', invoiceError);
-        // Return error so user knows
+      if (escrowError) {
+        console.error('Supabase insert error:', escrowError);
         return NextResponse.json(
-          { error: 'Database error: ' + invoiceError.message, details: invoiceError },
+          { error: 'Database error: ' + escrowError.message, details: escrowError },
           { status: 500 }
         );
       } else {
