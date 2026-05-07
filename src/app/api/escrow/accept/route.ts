@@ -46,16 +46,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate state transition
-    if (escrow.state !== EscrowState.PENDING_ACCEPTANCE) {
+    // Validate state transition - allow accept from DRAFT or PENDING_ACCEPTANCE
+    const currentState = escrow.state;
+    const isValidAcceptState = 
+      currentState === EscrowState.DRAFT || 
+      currentState === EscrowState.PENDING_ACCEPTANCE;
+    
+    if (!isValidAcceptState) {
       return NextResponse.json(
-        { error: `Invalid state for acceptance: ${escrow.state}. Expected: pending_acceptance` },
+        { error: `Invalid state for acceptance: ${escrow.state}. Expected: draft or pending_acceptance` },
         { status: 400 }
       );
     }
 
-    // Check if transition is valid (buyer can accept from pending_acceptance)
-    if (!canTransition(EscrowState.PENDING_ACCEPTANCE, EscrowState.ACCEPTED_WAITING_FUNDING, 'buyer')) {
+    // Check if transition is valid
+    if (!canTransition(currentState, EscrowState.ACCEPTED_WAITING_FUNDING, 'buyer')) {
       return NextResponse.json(
         { error: 'Invalid state transition' },
         { status: 400 }
