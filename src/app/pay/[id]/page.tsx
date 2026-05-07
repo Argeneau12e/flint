@@ -39,6 +39,7 @@ export default function PayPage() {
   const [paying, setPaying] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [userWallet, setUserWallet] = useState("");
+  const [hasFunded, setHasFunded] = useState(false); // From session storage
   const [isSeller, setIsSeller] = useState(false); // Detected based on wallet
   const [isBuyer, setIsBuyer] = useState(false); // Detected based on wallet
 
