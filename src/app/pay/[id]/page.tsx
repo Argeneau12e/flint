@@ -39,7 +39,8 @@ export default function PayPage() {
   const [paying, setPaying] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [userWallet, setUserWallet] = useState("");
-  const [hasFunded, setHasFunded] = useState(false);
+  const [isSeller, setIsSeller] = useState(false); // Detected based on wallet
+  const [isBuyer, setIsBuyer] = useState(false); // Detected based on wallet
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -48,6 +49,12 @@ export default function PayPage() {
         const data = await res.json();
         if (data.escrow) {
           setInvoice(data.escrow);
+          
+          // Detect user role if wallet is connected
+          if (userWallet) {
+            setIsSeller(userWallet === data.escrow.creator_wallet);
+            setIsBuyer(userWallet === data.escrow.buyer_wallet);
+          }
         }
       } catch (err) {
         console.error('Fetch error:', err);
@@ -58,13 +65,17 @@ export default function PayPage() {
 
     // Check if we just funded (from fund page redirect)
     const justFunded = sessionStorage.getItem(`funded_${id}`);
+    const justDelivered = sessionStorage.getItem(`delivered_${id}`);
+    const justReleased = sessionStorage.getItem(`released_${id}`);
+    const justDisputed = sessionStorage.getItem(`disputed_${id}`);
+    
     if (justFunded) {
       setHasFunded(true);
       sessionStorage.removeItem(`funded_${id}`);
     }
 
     fetchInvoice();
-  }, [id]);
+  }, [id, userWallet]);
 
   const connectWallet = async () => {
     try {
@@ -76,9 +87,16 @@ export default function PayPage() {
       }
 
       const response = await provider.connect();
-      setUserWallet(response.publicKey.toString());
+      const wallet = response.publicKey.toString();
+      setUserWallet(wallet);
       setWalletConnected(true);
       setError("");
+      
+      // Detect role immediately if we have invoice data
+      if (invoice) {
+        setIsSeller(wallet === invoice.creator_wallet);
+        setIsBuyer(wallet === invoice.buyer_wallet);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to connect wallet");
     }
@@ -103,7 +121,7 @@ export default function PayPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Navigate to fund page
+        setIsBuyer(true);
         router.push(`/pay/${id}/fund`);
       } else {
         setError(data.error || "Failed to accept invoice");
@@ -202,8 +220,8 @@ export default function PayPage() {
         </button>
 
         <div className="glass-medium rounded-2xl p-6 sm:p-8">
-          {/* Status Badge */}
-          <div className="mb-6">
+          {/* Status Badge + Role Badge */}
+          <div className="mb-6 flex gap-2 flex-wrap">
             <span
               className="text-xs px-3 py-1.5 rounded-full font-medium"
               style={{
@@ -214,6 +232,18 @@ export default function PayPage() {
             >
               {hasFunded ? 'Funded - Waiting Delivery' : getStatusLabel(invoice.status)}
             </span>
+            
+            {/* Role Badge */}
+            {isSeller && (
+              <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', border: '1px solid rgba(139,92,246,0.3)' }}>
+                🏷️ Seller
+              </span>
+            )}
+            {isBuyer && (
+              <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
+                🏷️ Buyer
+              </span>
+            )}
           </div>
 
           {/* Title */}

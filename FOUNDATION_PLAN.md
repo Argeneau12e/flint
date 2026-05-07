@@ -7,18 +7,19 @@
 
 ---
 
-## ✅ **APPROVAL STATUS**
+## ✅ **PHASE 0 COMPLETION STATUS**
 
 - [x] Plan approved by Da-Vinci
 - [x] Escrow services API approach (not custom Solana program)
 - [x] Hybrid submission strategy (demo mode for hackathon)
 - [x] State machine library created
 - [x] Database migration created
-- [ ] APIs updated (create, accept, fund)
-- [ ] Deadline enforcement cron job
-- [ ] Invoice/pay page merge
-- [ ] UX integration (Phase 1)
-- [ ] Blockchain integration (Phase 2)
+- [x] APIs updated (create, accept, fund, deliver, release, dispute, resolve)
+- [x] Deadline enforcement cron job
+- [ ] Invoice/pay page merge (NEXT)
+- [ ] End-to-end testing
+- [ ] Phase 1: UX integration
+- [ ] Phase 2: Blockchain integration
 
 ---
 
@@ -187,14 +188,14 @@ DISPUTED → REFUNDED (resolve for buyer)
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
-| `POST /api/escrow/create` | ✅ UPDATED | Creates in DRAFT state |
-| `POST /api/escrow/accept` | ✅ UPDATED | Binds buyer wallet, transitions state |
-| `POST /api/escrow/fund` | ✅ UPDATED | HYBRID MODE (demo/production) |
-| `POST /api/escrow/deliver` | ⏳ TODO | Update state, trigger deadline |
-| `POST /api/escrow/release` | ⏳ TODO | Update state, transfer funds |
-| `POST /api/escrow/dispute` | ⏳ TODO | Freeze funds, start resolution |
-| `GET /api/escrow/status` | ⏳ TODO | Get escrow details |
-| `POST /api/escrow/resolve` | ⏳ TODO | Execute AI/human decision |
+| `POST /api/escrow/create` | ✅ COMPLETE | Creates in DRAFT state |
+| `POST /api/escrow/accept` | ✅ COMPLETE | Binds buyer wallet, transitions state |
+| `POST /api/escrow/fund` | ✅ COMPLETE | HYBRID MODE (demo/production) |
+| `POST /api/escrow/deliver` | ✅ COMPLETE | Transitions to DELIVERED_REVIEW |
+| `POST /api/escrow/release` | ✅ COMPLETE | Transitions to RELEASED_COMPLETE/AUTO_APPROVED |
+| `POST /api/escrow/dispute` | ✅ COMPLETE | Transitions to DISPUTED, freezes funds |
+| `POST /api/escrow/resolve` | ✅ COMPLETE | Resolves dispute (seller/buyer wins) |
+| `GET /api/escrow/status` | ⏳ TODO | Get escrow details (legacy, use Supabase) |
 
 ---
 
@@ -311,24 +312,28 @@ export async function enforceDeadlines() {
 ### **Week 1 (Now - May 11): Foundation**
 
 ```
-Day 1 (Today):
+Day 1 (Today - May 7):
 ✅ State machine library
 ✅ Database migration
 ✅ Update create/accept/fund APIs
+✅ Update deliver/release/dispute/resolve APIs
+✅ Create deadline cron job
+✅ CRON_SETUP.md guide
 
-Day 2-3:
-⏳ Update deliver/release/dispute APIs
-⏳ Create deadline cron job
+Day 2 (May 8):
 ⏳ Merge /invoice and /pay flows
-
-Day 4-5:
-⏳ Test state transitions
-⏳ Test deadline enforcement
+⏳ Test full flow end-to-end
 ⏳ Bug fixes
 
-Day 6-7:
+Day 3-4 (May 9-10):
+⏳ Set up cron job in OpenClaw/Vercel
+⏳ Test deadline enforcement
 ⏳ Start Phase 1 (UX Integration)
+
+Day 5-7 (May 11):
 ⏳ Prepare hackathon submission
+⏳ Record demo video
+⏳ Submit to tracks
 ```
 
 ### **Week 2 (May 12-18): UX Integration**
