@@ -83,21 +83,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Create dispute resolution object
+    const resolvedAt = new Date().toISOString();
     const disputeResolution = {
       winner: resolution,
       reason,
       aiConfidence: aiConfidence || null,
       isAiRecommendation,
       humanReviewer: humanReviewer || null,
-      resolvedAt: Date.now(),
+      resolvedAt,
       refundAmount: resolution === 'buyer' ? escrow.amount : 0,
       releaseAmount: resolution === 'seller' ? escrow.amount : 0,
     };
-
-    // Update escrow: transition to final state
-    const resolvedAt = new Date().toISOString();
-    // Update the resolution object with proper timestamp
-    disputeResolution.resolvedAt = resolvedAt;
     
     const { error: updateError } = await supabase
       .from('escrows')
