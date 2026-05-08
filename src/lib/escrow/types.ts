@@ -1,37 +1,44 @@
 /**
  * Flint Escrow Smart Contract - Types & Constants
  * 
- * State Machine:
- * DRAFT → PENDING_ACCEPTANCE (7 days) → ACCEPTED_WAITING_FUNDING (3 days) → FUNDED_ACTIVE
- * FUNDED_ACTIVE → DELIVERED_REVIEW (7 days) → RELEASED_COMPLETE | DISPUTED | AUTO_APPROVED
+ * REAL FLINT FLOW State Machine (Simplified):
+ * DRAFT → FUNDED_ACTIVE (Alice funds) → DELIVERED_REVIEW (Bob delivers)
+ * DELIVERED_REVIEW → RELEASED_COMPLETE (Alice approves)
+ * DELIVERED_REVIEW → AUTO_APPROVED (7 days, Alice ghosts)
+ * DRAFT → AUTO_CANCELLED (link expires)
+ * DRAFT → DECLINED (Alice declines)
+ * FUNDED_ACTIVE → AUTO_CANCELLED (Bob misses deadline)
+ * DELIVERED_REVIEW → DISPUTED (Alice disputes)
+ * 
+ * CRITICAL: Alice doesn't know about Flint. She's just paying Bob.
  */
 
-// Escrow States
+// Escrow States (REAL Flint Flow - Simplified)
 export enum EscrowState {
-  DRAFT = 'draft',
-  PENDING_ACCEPTANCE = 'pending_acceptance',
-  ACCEPTED_WAITING_FUNDING = 'accepted_waiting_funding',
-  FUNDED_ACTIVE = 'funded_active',
-  DELIVERED_REVIEW = 'delivered_review',
-  RELEASED_COMPLETE = 'released_complete',
-  DISPUTED = 'disputed',
-  AUTO_APPROVED = 'auto_approved',
-  AUTO_CANCELLED = 'auto_cancelled',
-  REFUNDED = 'refunded',
+  DRAFT = 'draft',                      // Bob created, waiting for Alice to fund
+  FUNDED_ACTIVE = 'funded_active',      // Alice funded, Bob working
+  DELIVERED_REVIEW = 'delivered_review', // Bob delivered, Alice reviewing
+  RELEASED_COMPLETE = 'released_complete', // Alice approved, Bob paid
+  AUTO_APPROVED = 'auto_approved',      // Alice ghosted (7 days), auto-released to Bob
+  AUTO_CANCELLED = 'auto_cancelled',    // Bob missed deadline or link expired, refunded to Alice
+  DISPUTED = 'disputed',                // Alice disputed, under review
+  DECLINED = 'declined',                // Alice declined the invoice (NEW)
 }
 
-// Timeout durations (in seconds)
-export const ESCROW_TIMEOUTS = {
-  ACCEPTANCE_TIMEOUT: 7 * 24 * 60 * 60, // 7 days
-  FUNDING_TIMEOUT: 3 * 24 * 60 * 60, // 3 days
-  REVIEW_TIMEOUT: 7 * 24 * 60 * 60, // 7 days
+// Timeout durations (in milliseconds for frontend compatibility)
+export const ESCROW_DEADLINES = {
+  LINK_EXPIRY: 3 * 24 * 60 * 60 * 1000,     // 3 days for Alice to fund
+  DELIVERY: 7 * 24 * 60 * 60 * 1000,        // 7 days for Bob to deliver (configurable)
+  REVIEW: 7 * 24 * 60 * 60 * 1000,          // 7 days for Alice to review
 };
 
-// Fee structure
+// Fee tiers (REAL Flint Flow: Bob pays fee, NOT added to Alice's payment)
+// Alice pays exact amount. Fee is deducted from Bob's payout.
 export const FEE_TIERS = {
-  FREE: { rate: 0.01, name: 'Free' }, // 1%
-  PRO: { rate: 0.005, name: 'Pro' }, // 0.5%
-  BUSINESS: { rate: 0.0025, name: 'Business' }, // 0.25%
+  FREE: { rate: 0, maxVolume: 1000, name: 'Free' },           // 0% (first invoice)
+  BASIC: { rate: 0.01, maxVolume: 10000, name: 'Basic' },     // 1%
+  PRO: { rate: 0.0075, maxVolume: 100000, name: 'Pro' },      // 0.75%
+  ENTERPRISE: { rate: 0.005, maxVolume: Infinity, name: 'Enterprise' }, // 0.5%
 };
 
 // Fee caps (in USD)
@@ -55,8 +62,8 @@ export const SOL_PRICE_CONFIG = {
 // Escrow PDA seed prefix
 export const ESCROW_PDA_SEED = 'flint_escrow';
 
-// Treasury wallet (Flint revenue) - TO BE UPDATED
-export const TREASURY_WALLET = 'FLINT_TREASURY_WALLET_ADDRESS'; // Replace with actual address
+// Treasury wallet (Flint revenue)
+export const TREASURY_WALLET = '2c3TBCrtoaRz81JcqVLKQ3X9xA81YwJeziqQeUiTESF'; // Flint Treasury
 
 // Supported tokens
 export const SUPPORTED_TOKENS = {

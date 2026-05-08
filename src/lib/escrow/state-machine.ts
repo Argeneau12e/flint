@@ -1,11 +1,17 @@
 /**
- * Flint Escrow State Machine
+ * Flint Escrow State Machine (REAL Flint Flow)
  * 
  * Enforces state transitions, validates actions, and handles timeouts.
  * This is the CORE LOGIC that makes escrow actually work.
+ * 
+ * REAL FLOW:
+ * DRAFT → FUNDED_ACTIVE (Alice funds) → DELIVERED_REVIEW (Bob delivers)
+ * DELIVERED_REVIEW → RELEASED_COMPLETE (Alice approves) | AUTO_APPROVED (timeout) | DISPUTED
+ * DRAFT → AUTO_CANCELLED (link expires) | DECLINED (Alice declines)
+ * FUNDED_ACTIVE → AUTO_CANCELLED (Bob misses deadline)
  */
 
-import { EscrowState, ESCROW_TIMEOUTS } from './types';
+import { EscrowState, ESCROW_DEADLINES } from './types';
 
 export interface StateTransition {
   from: EscrowState;
@@ -22,55 +28,27 @@ export interface TimeoutResult {
 }
 
 /**
- * Valid state transitions
+ * Valid state transitions (REAL Flint Flow - Simplified)
  */
 export const STATE_TRANSITIONS: Record<EscrowState, StateTransition[]> = {
   [EscrowState.DRAFT]: [
     {
       from: EscrowState.DRAFT,
-      to: EscrowState.PENDING_ACCEPTANCE,
-      requiredRole: 'creator',
-      allowedActions: ['send_to_buyer'],
-    },
-    {
-      from: EscrowState.DRAFT,
-      to: EscrowState.ACCEPTED_WAITING_FUNDING,
-      requiredRole: 'buyer',
-      allowedActions: ['accept'],
-    },
-  ],
-  [EscrowState.PENDING_ACCEPTANCE]: [
-    {
-      from: EscrowState.PENDING_ACCEPTANCE,
-      to: EscrowState.ACCEPTED_WAITING_FUNDING,
-      requiredRole: 'buyer',
-      allowedActions: ['accept'],
-    },
-    {
-      from: EscrowState.PENDING_ACCEPTANCE,
-      to: EscrowState.AUTO_CANCELLED,
-      requiredRole: 'system',
-      allowedActions: ['timeout'],
-    },
-  ],
-  [EscrowState.ACCEPTED_WAITING_FUNDING]: [
-    {
-      from: EscrowState.ACCEPTED_WAITING_FUNDING,
       to: EscrowState.FUNDED_ACTIVE,
       requiredRole: 'buyer',
       allowedActions: ['fund'],
     },
     {
-      from: EscrowState.ACCEPTED_WAITING_FUNDING,
-      to: EscrowState.AUTO_CANCELLED,
-      requiredRole: 'system',
-      allowedActions: ['timeout'],
-    },
-    {
-      from: EscrowState.ACCEPTED_WAITING_FUNDING,
-      to: EscrowState.DRAFT,
+      from: EscrowState.DRAFT,
+      to: EscrowState.DECLINED,
       requiredRole: 'buyer',
       allowedActions: ['decline'],
+    },
+    {
+      from: EscrowState.DRAFT,
+      to: EscrowState.AUTO_CANCELLED,
+      requiredRole: 'system',
+      allowedActions: ['timeout'], // Link expired
     },
   ],
   [EscrowState.FUNDED_ACTIVE]: [
@@ -82,9 +60,9 @@ export const STATE_TRANSITIONS: Record<EscrowState, StateTransition[]> = {
     },
     {
       from: EscrowState.FUNDED_ACTIVE,
-      to: EscrowState.REFUNDED,
+      to: EscrowState.AUTO_CANCELLED,
       requiredRole: 'system',
-      allowedActions: ['timeout'],
+      allowedActions: ['timeout'], // Bob missed delivery deadline
     },
   ],
   [EscrowState.DELIVERED_REVIEW]: [
@@ -104,10 +82,12 @@ export const STATE_TRANSITIONS: Record<EscrowState, StateTransition[]> = {
       from: EscrowState.DELIVERED_REVIEW,
       to: EscrowState.AUTO_APPROVED,
       requiredRole: 'system',
-      allowedActions: ['timeout'],
+      allowedActions: ['timeout'], // Alice didn't respond in 7 days
     },
   ],
   [EscrowState.RELEASED_COMPLETE]: [],
+  [EscrowState.AUTO_APPROVED]: [],
+  [EscrowState.AUTO_CANCELLED]: [],
   [EscrowState.DISPUTED]: [
     {
       from: EscrowState.DISPUTED,
@@ -117,14 +97,12 @@ export const STATE_TRANSITIONS: Record<EscrowState, StateTransition[]> = {
     },
     {
       from: EscrowState.DISPUTED,
-      to: EscrowState.REFUNDED,
+      to: EscrowState.AUTO_CANCELLED,
       requiredRole: 'system',
       allowedActions: ['resolve_buyer'],
     },
   ],
-  [EscrowState.AUTO_APPROVED]: [],
-  [EscrowState.AUTO_CANCELLED]: [],
-  [EscrowState.REFUNDED]: [],
+  [EscrowState.DECLINED]: [],
 };
 
 /**
@@ -179,21 +157,18 @@ export function checkTimeout(
     };
   }
   
-  // Determine next state based on current state
+  // Determine next state based on current state (REAL Flint Flow)
   let nextState: EscrowState | null = null;
   
   switch (currentState) {
-    case EscrowState.PENDING_ACCEPTANCE:
-      nextState = EscrowState.AUTO_CANCELLED;
-      break;
-    case EscrowState.ACCEPTED_WAITING_FUNDING:
-      nextState = EscrowState.AUTO_CANCELLED;
+    case EscrowState.DRAFT:
+      nextState = EscrowState.AUTO_CANCELLED; // Link expired
       break;
     case EscrowState.FUNDED_ACTIVE:
-      nextState = EscrowState.REFUNDED;
+      nextState = EscrowState.AUTO_CANCELLED; // Bob missed delivery deadline
       break;
     case EscrowState.DELIVERED_REVIEW:
-      nextState = EscrowState.AUTO_APPROVED;
+      nextState = EscrowState.AUTO_APPROVED; // Alice didn't respond in 7 days
       break;
     default:
       nextState = null;
@@ -208,19 +183,22 @@ export function checkTimeout(
 }
 
 /**
- * Calculate deadline from state
+ * Calculate deadline from state (REAL Flint Flow)
  */
 export function getDeadlineForState(
   state: EscrowState,
   createdAt: number = Date.now()
 ): number {
   switch (state) {
-    case EscrowState.PENDING_ACCEPTANCE:
-      return createdAt + (ESCROW_TIMEOUTS.ACCEPTANCE_TIMEOUT * 1000);
-    case EscrowState.ACCEPTED_WAITING_FUNDING:
-      return createdAt + (ESCROW_TIMEOUTS.FUNDING_TIMEOUT * 1000);
+    case EscrowState.DRAFT:
+      // Link expiry: 3 days from creation
+      return createdAt + ESCROW_DEADLINES.LINK_EXPIRY;
+    case EscrowState.FUNDED_ACTIVE:
+      // Delivery deadline: 7 days from funding (configurable, but default is 7)
+      return createdAt + ESCROW_DEADLINES.DELIVERY;
     case EscrowState.DELIVERED_REVIEW:
-      return createdAt + (ESCROW_TIMEOUTS.REVIEW_TIMEOUT * 1000);
+      // Review deadline: 7 days from delivery
+      return createdAt + ESCROW_DEADLINES.REVIEW;
     default:
       return 0;
   }
@@ -248,7 +226,7 @@ export function formatTimeRemaining(ms: number): string {
 }
 
 /**
- * Get state metadata (label, color, description)
+ * Get state metadata (label, color, description) - REAL Flint Flow
  */
 export function getStateMetadata(state: EscrowState): {
   label: string;
@@ -257,54 +235,44 @@ export function getStateMetadata(state: EscrowState): {
 } {
   const metadata: Record<EscrowState, { label: string; color: string; description: string }> = {
     [EscrowState.DRAFT]: {
-      label: 'Draft',
-      color: '#888888',
-      description: 'Invoice created but not sent',
-    },
-    [EscrowState.PENDING_ACCEPTANCE]: {
-      label: 'Pending Acceptance',
+      label: 'Waiting for Alice',
       color: '#FFB800',
-      description: 'Waiting for buyer to accept',
-    },
-    [EscrowState.ACCEPTED_WAITING_FUNDING]: {
-      label: 'Waiting Funding',
-      color: '#FFB800',
-      description: 'Buyer accepted, waiting for escrow funding',
+      description: 'Invoice created, waiting for Alice to fund',
     },
     [EscrowState.FUNDED_ACTIVE]: {
-      label: 'Active',
+      label: 'In Progress',
       color: '#3b82f6',
-      description: 'Funds secured, seller working',
+      description: 'Funds secured, Bob is working',
     },
     [EscrowState.DELIVERED_REVIEW]: {
-      label: 'In Review',
+      label: 'Awaiting Review',
       color: '#8b5cf6',
-      description: 'Work delivered, buyer reviewing',
+      description: 'Work delivered, Alice reviewing',
     },
     [EscrowState.RELEASED_COMPLETE]: {
       label: 'Complete',
       color: '#4ade80',
-      description: 'Payment released to seller',
+      description: 'Payment released to Bob',
+    },
+    [EscrowState.AUTO_APPROVED]: {
+      label: 'Auto-Approved',
+      color: '#4ade80',
+      description: 'Auto-approved after 7 days (Alice didn\'t respond)',
+    },
+    [EscrowState.AUTO_CANCELLED]: {
+      label: 'Expired',
+      color: '#888888',
+      description: 'Expired - funds refunded to Alice',
     },
     [EscrowState.DISPUTED]: {
       label: 'Disputed',
       color: '#ff4444',
       description: 'Dispute opened, under review',
     },
-    [EscrowState.AUTO_APPROVED]: {
-      label: 'Auto-Approved',
-      color: '#4ade80',
-      description: 'Auto-approved after review period',
-    },
-    [EscrowState.AUTO_CANCELLED]: {
-      label: 'Cancelled',
+    [EscrowState.DECLINED]: {
+      label: 'Declined',
       color: '#888888',
-      description: 'Auto-cancelled after timeout',
-    },
-    [EscrowState.REFUNDED]: {
-      label: 'Refunded',
-      color: '#ff4444',
-      description: 'Funds refunded to buyer',
+      description: 'Alice declined the invoice',
     },
   };
   
