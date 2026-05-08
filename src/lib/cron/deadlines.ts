@@ -101,18 +101,21 @@ async function checkAndTransitionEscrow(
   switch (escrow.state) {
     case EscrowState.DRAFT:
       // Link expiry: Alice didn't fund in 3 days
+      if (!escrow.link_expires_at) return; // No expiry set, skip
       deadline = new Date(escrow.link_expires_at).getTime();
       nextState = EscrowState.AUTO_CANCELLED;
       break;
     
     case EscrowState.FUNDED_ACTIVE:
       // Delivery deadline: Bob didn't deliver in 7 days
+      if (!escrow.delivery_deadline) return; // No deadline set, skip
       deadline = escrow.delivery_deadline;
       nextState = EscrowState.AUTO_CANCELLED;
       break;
     
     case EscrowState.DELIVERED_REVIEW:
       // Review deadline: Alice didn't respond in 7 days
+      if (!escrow.review_deadline) return; // No deadline set, skip
       deadline = escrow.review_deadline;
       nextState = EscrowState.AUTO_APPROVED;
       break;
