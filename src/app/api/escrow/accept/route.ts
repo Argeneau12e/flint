@@ -5,7 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * POST /api/escrow/accept
- * Buyer accepts the invoice - binds buyer wallet and transitions state
+ * DEPRECATED in REAL Flint Flow
+ * 
+ * In REAL flow, Alice doesn't "accept" - she just funds.
+ * This endpoint is kept for backward compatibility only.
+ * Use /api/escrow/fund instead.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -46,36 +50,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate state transition - allow accept from DRAFT or PENDING_ACCEPTANCE
+    // REAL Flow: Only DRAFT state can be accepted/funded
     const currentState = escrow.state;
-    const isValidAcceptState = 
-      currentState === EscrowState.DRAFT || 
-      currentState === EscrowState.PENDING_ACCEPTANCE;
     
-    if (!isValidAcceptState) {
+    if (currentState !== EscrowState.DRAFT) {
       return NextResponse.json(
-        { error: `Invalid state for acceptance: ${escrow.state}. Expected: draft or pending_acceptance` },
+        { error: `Invalid state for acceptance: ${escrow.state}. Expected: draft` },
         { status: 400 }
       );
     }
 
-    // Check if transition is valid
-    if (!canTransition(currentState, EscrowState.ACCEPTED_WAITING_FUNDING, 'buyer')) {
+    // Check if link has expired
+    if (escrow.link_expires_at && new Date() > new Date(escrow.link_expires_at)) {
       return NextResponse.json(
-        { error: 'Invalid state transition' },
-        { status: 400 }
+        { error: 'Payment link has expired' },
+        { status: 410 }
       );
     }
 
-    // Update escrow: bind buyer wallet and transition state
-    const acceptedAt = new Date().toISOString(); // PostgreSQL expects ISO string for TIMESTAMPTZ
+    // In REAL flow, accept + fund happen together
+    // For backward compatibility, we'll just bind the buyer wallet
+    // Actual funding happens via /api/escrow/fund
+    const acceptedAt = new Date().toISOString();
     
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
         buyer_wallet: buyerWallet,
-        state: EscrowState.ACCEPTED_WAITING_FUNDING,
-        accepted_at: acceptedAt,
+        // Keep in DRAFT state until actual funding
+        // buyer_wallet is bound but state doesn't change yet
       })
       .eq('id', escrowId);
 
@@ -83,8 +86,6 @@ export async function POST(req: NextRequest) {
       console.error('Accept update error:', {
         escrowId,
         error: updateError,
-        currentState: escrow.state,
-        newState: EscrowState.ACCEPTED_WAITING_FUNDING,
       });
       return NextResponse.json(
         { error: 'Failed to accept escrow', details: updateError.message },
@@ -92,17 +93,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('✅ Escrow accepted:', escrowId, 'Buyer:', buyerWallet);
+    console.log('✅ Escrow accepted (buyer bound):', escrowId, 'Buyer:', buyerWallet);
 
     return NextResponse.json({
       success: true,
-      message: 'Invoice accepted. Please fund the escrow.',
+      message: 'Buyer wallet bound. Proceed to fund the escrow.',
       escrow: {
         id: escrowId,
-        state: EscrowState.ACCEPTED_WAITING_FUNDING,
+        state: EscrowState.DRAFT,
         buyer_wallet: buyerWallet,
-        funding_deadline: escrow.funding_deadline,
+        link_expires_at: escrow.link_expires_at,
       },
+      note: 'In REAL Flint Flow, use /api/escrow/fund to complete the payment.',
     });
   } catch (error: any) {
     console.error('Accept error:', error);

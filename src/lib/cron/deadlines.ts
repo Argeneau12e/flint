@@ -1,5 +1,5 @@
 /**
- * Deadline Enforcement Cron Job
+ * Deadline Enforcement Cron Job (REAL Flint Flow)
  * 
  * Runs hourly to check and auto-transition expired escrows.
  * This ensures no escrow stays in limbo forever.
@@ -8,11 +8,10 @@
  * - Manual: npx ts-node src/lib/cron/deadlines.ts
  * - Cron: Set up in OpenClaw gateway to run every hour
  * 
- * State Transitions:
- * - PENDING_ACCEPTANCE (7 days) → AUTO_CANCELLED
- * - ACCEPTED_WAITING_FUNDING (3 days) → AUTO_CANCELLED
- * - FUNDED_ACTIVE (deadline + grace) → REFUNDED
- * - DELIVERED_REVIEW (7 days) → AUTO_APPROVED
+ * REAL Flow State Transitions:
+ * - DRAFT (3 days link expiry) → AUTO_CANCELLED
+ * - FUNDED_ACTIVE (7 days delivery) → AUTO_CANCELLED
+ * - DELIVERED_REVIEW (7 days review) → AUTO_APPROVED
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -54,13 +53,12 @@ export async function enforceDeadlines(): Promise<{
 
   console.log('⏰ Starting deadline enforcement...', new Date().toISOString());
 
-  // Fetch all active escrows (states that have deadlines)
+  // Fetch all active escrows (REAL flow states with deadlines)
   const { data: escrows, error: fetchError } = await supabase
     .from('escrows')
     .select('*')
     .in('state', [
-      EscrowState.PENDING_ACCEPTANCE,
-      EscrowState.ACCEPTED_WAITING_FUNDING,
+      EscrowState.DRAFT,
       EscrowState.FUNDED_ACTIVE,
       EscrowState.DELIVERED_REVIEW,
     ]);
@@ -97,25 +95,22 @@ async function checkAndTransitionEscrow(
   let nextState: EscrowState | null = null;
   let timeRemaining = 0;
 
-  // Determine which deadline applies based on state
+  // Determine which deadline applies based on state (REAL flow)
   switch (escrow.state) {
-    case EscrowState.PENDING_ACCEPTANCE:
-      deadline = escrow.acceptance_deadline;
-      nextState = EscrowState.AUTO_CANCELLED;
-      break;
-    
-    case EscrowState.ACCEPTED_WAITING_FUNDING:
-      deadline = escrow.funding_deadline;
+    case EscrowState.DRAFT:
+      // Link expiry: Alice didn't fund in 3 days
+      deadline = new Date(escrow.link_expires_at).getTime();
       nextState = EscrowState.AUTO_CANCELLED;
       break;
     
     case EscrowState.FUNDED_ACTIVE:
-      // For funded_active, we need to check if delivery deadline passed
-      // This is more complex - would need delivered_at timestamp
-      // For now, skip (would need additional logic)
-      return;
+      // Delivery deadline: Bob didn't deliver in 7 days
+      deadline = escrow.delivery_deadline;
+      nextState = EscrowState.AUTO_CANCELLED;
+      break;
     
     case EscrowState.DELIVERED_REVIEW:
+      // Review deadline: Alice didn't respond in 7 days
       deadline = escrow.review_deadline;
       nextState = EscrowState.AUTO_APPROVED;
       break;
@@ -149,10 +144,10 @@ async function checkAndTransitionEscrow(
     throw new Error(`Failed to update: ${updateError.message}`);
   }
 
-  // TODO: Send notifications to affected parties
-  // - For AUTO_CANCELLED: Notify both parties
-  // - For AUTO_APPROVED: Notify both parties, release funds
-  // - For REFUNDED: Notify both parties, process refund
+  // TODO: Send notifications to affected parties (REAL flow)
+  // - For AUTO_CANCELLED (link expired): Notify Bob (Alice didn't fund)
+  // - For AUTO_CANCELLED (delivery missed): Notify Alice (refund issued), notify Bob (reputation hit)
+  // - For AUTO_APPROVED: Notify Alice (payment released), notify Bob (payment received)
 
   console.log(`✅ Escrow ${escrow.id} auto-transitioned to ${nextState}`);
 }

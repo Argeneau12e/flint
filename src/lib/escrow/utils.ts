@@ -1,4 +1,4 @@
-import { FEE_TIERS, FEE_CAPS, ESCROW_TIMEOUTS, EscrowState, MINIMUMS, SOL_PRICE_CONFIG } from './types';
+import { FEE_TIERS, FEE_CAPS, ESCROW_DEADLINES, EscrowState, MINIMUMS, SOL_PRICE_CONFIG } from './types';
 
 // SOL price cache
 let solPriceCache: { price: number; timestamp: number } | null = null;
@@ -143,14 +143,14 @@ export function checkTimeout(
     let nextState: EscrowState | null = null;
     
     switch (state) {
-      case EscrowState.PENDING_ACCEPTANCE:
-        nextState = EscrowState.AUTO_CANCELLED;
+      case EscrowState.DRAFT:
+        nextState = EscrowState.AUTO_CANCELLED; // Link expired
         break;
-      case EscrowState.ACCEPTED_WAITING_FUNDING:
-        nextState = EscrowState.AUTO_CANCELLED;
+      case EscrowState.FUNDED_ACTIVE:
+        nextState = EscrowState.AUTO_CANCELLED; // Bob missed delivery deadline
         break;
       case EscrowState.DELIVERED_REVIEW:
-        nextState = EscrowState.AUTO_APPROVED;
+        nextState = EscrowState.AUTO_APPROVED; // Alice didn't respond
         break;
     }
     
@@ -197,34 +197,24 @@ export function getStateInfo(state: EscrowState): {
 } {
   const stateInfo: Record<EscrowState, { label: string; color: string; description: string }> = {
     [EscrowState.DRAFT]: {
-      label: 'Draft',
-      color: '#888888',
-      description: 'Invoice created, not yet sent',
-    },
-    [EscrowState.PENDING_ACCEPTANCE]: {
-      label: 'Pending Acceptance',
+      label: 'Waiting for Alice',
       color: '#FFB800',
-      description: 'Waiting for buyer to accept',
-    },
-    [EscrowState.ACCEPTED_WAITING_FUNDING]: {
-      label: 'Waiting Funding',
-      color: '#FFB800',
-      description: 'Accepted, waiting for escrow funding',
+      description: 'Invoice created, waiting for Alice to fund',
     },
     [EscrowState.FUNDED_ACTIVE]: {
-      label: 'Active',
+      label: 'In Progress',
       color: '#3b82f6',
-      description: 'Funds secured in escrow',
+      description: 'Funds secured, Bob is working',
     },
     [EscrowState.DELIVERED_REVIEW]: {
-      label: 'In Review',
+      label: 'Awaiting Review',
       color: '#8b5cf6',
-      description: 'Work delivered, awaiting approval',
+      description: 'Work delivered, Alice reviewing',
     },
     [EscrowState.RELEASED_COMPLETE]: {
       label: 'Complete',
       color: '#4ade80',
-      description: 'Funds released to seller',
+      description: 'Payment released to Bob',
     },
     [EscrowState.DISPUTED]: {
       label: 'Disputed',
@@ -234,17 +224,17 @@ export function getStateInfo(state: EscrowState): {
     [EscrowState.AUTO_APPROVED]: {
       label: 'Auto-Approved',
       color: '#4ade80',
-      description: 'Auto-approved after review timeout',
+      description: 'Auto-approved after 7 days',
     },
     [EscrowState.AUTO_CANCELLED]: {
-      label: 'Cancelled',
+      label: 'Expired',
       color: '#888888',
-      description: 'Auto-cancelled due to timeout',
+      description: 'Expired - funds refunded to Alice',
     },
-    [EscrowState.REFUNDED]: {
-      label: 'Refunded',
-      color: '#ff4444',
-      description: 'Funds refunded to buyer',
+    [EscrowState.DECLINED]: {
+      label: 'Declined',
+      color: '#888888',
+      description: 'Alice declined the invoice',
     },
   };
   

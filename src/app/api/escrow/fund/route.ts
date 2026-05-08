@@ -50,16 +50,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate state transition
-    if (escrow.state !== EscrowState.ACCEPTED_WAITING_FUNDING) {
+    // REAL Flint Flow: Validate state transition (DRAFT → FUNDED_ACTIVE)
+    if (escrow.state !== EscrowState.DRAFT) {
       return NextResponse.json(
-        { error: `Invalid state for funding: ${escrow.state}. Expected: accepted_waiting_funding` },
+        { error: `Invalid state for funding: ${escrow.state}. Expected: draft` },
         { status: 400 }
       );
     }
 
-    // Check if transition is valid
-    if (!canTransition(EscrowState.ACCEPTED_WAITING_FUNDING, EscrowState.FUNDED_ACTIVE, 'buyer')) {
+    // Check if link has expired
+    if (escrow.link_expires_at && new Date() > new Date(escrow.link_expires_at)) {
+      return NextResponse.json(
+        { error: 'Payment link has expired' },
+        { status: 410 }
+      );
+    }
+
+    // Check if transition is valid (DRAFT → FUNDED_ACTIVE)
+    if (!canTransition(EscrowState.DRAFT, EscrowState.FUNDED_ACTIVE, 'buyer')) {
       return NextResponse.json(
         { error: 'Invalid state transition' },
         { status: 400 }

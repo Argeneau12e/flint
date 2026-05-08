@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * POST /api/escrow/resolve
  * Resolve a dispute (AI recommendation or human decision)
- * Transitions: DISPUTED → RELEASED_COMPLETE (seller wins) or DISPUTED → REFUNDED (buyer wins)
+ * Transitions: DISPUTED → RELEASED_COMPLETE (seller wins) or DISPUTED → AUTO_CANCELLED (buyer wins)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine next state based on resolution
+    // Determine next state based on resolution (REAL flow)
     const nextState = resolution === 'seller' 
       ? EscrowState.RELEASED_COMPLETE 
-      : EscrowState.REFUNDED;
+      : EscrowState.AUTO_CANCELLED; // Was REFUNDED, now AUTO_CANCELLED
 
     // Check if transition is valid (system resolves dispute)
     if (!canTransition(EscrowState.DISPUTED, nextState, 'system')) {
