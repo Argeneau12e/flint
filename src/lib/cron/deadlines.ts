@@ -20,9 +20,11 @@ import { EscrowState } from '../escrow/types';
 interface EscrowRecord {
   id: string;
   state: EscrowState;
-  acceptance_deadline: number;
-  funding_deadline: number;
-  review_deadline: number;
+  acceptance_deadline?: number;
+  funding_deadline?: number;
+  delivery_deadline?: number;
+  review_deadline?: number;
+  link_expires_at?: string | number; // Can be ISO string or timestamp
   creator: string;
   buyer_wallet: string;
   creator_wallet: string;
