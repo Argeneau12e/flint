@@ -150,6 +150,11 @@ export default function FundPage() {
         escrowAta
       );
 
+      // Fetch latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = buyer;
+
       // Step 4: Sign and send transaction
       const signature = await provider.signAndSendTransaction(transaction);
       
