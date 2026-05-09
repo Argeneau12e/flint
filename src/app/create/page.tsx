@@ -77,13 +77,17 @@ function CreatePageInner() {
     setConnecting(true);
     setConnectionError("");
     try {
-      const provider = await getSolanaProvider();
+      const provider = getSolanaProvider();
       if (!provider) {
         setConnectionError("Phantom wallet not found. Please install Phantom.");
         return;
       }
-      const response = await provider.connect();
-      const wallet = response.publicKey.toString();
+      await provider.connect();
+      const wallet = provider.publicKey?.toString();
+      if (!wallet) {
+        setConnectionError("Failed to get wallet address");
+        return;
+      }
       setUserWallet(wallet);
       setWalletConnected(true);
       localStorage.setItem("flint_wallet", wallet);
