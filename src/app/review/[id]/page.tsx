@@ -54,12 +54,24 @@ function ReviewPageInner() {
   const handleApprove = async () => {
     if (!confirm("Approve payment to seller? This will release the funds.")) return;
     
+    // Get buyer wallet
+    let buyerWallet = '';
+    if ((window as any).solana) {
+      try {
+        const resp = await (window as any).solana.connect();
+        buyerWallet = resp.publicKey.toString();
+      } catch (err) {
+        setError('Please connect your wallet first');
+        return;
+      }
+    }
+    
     setActionLoading(true);
     try {
       const res = await fetch("/api/escrow/release", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ escrowId: params.id }),
+        body: JSON.stringify({ escrowId: params.id, buyerWallet }),
       });
       const data = await res.json();
       if (data.success) {
