@@ -13,7 +13,6 @@ const ESCRO_API_URL = 'https://api-devnet.escro.ai';
 // Initialize escro client
 export const escroClient = new Escro({
   apiUrl: ESCRO_API_URL,
-  network: 'devnet',
 });
 
 /**
