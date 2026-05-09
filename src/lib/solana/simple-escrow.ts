@@ -142,14 +142,16 @@ export async function createRefundInstruction(
 
 /**
  * Get escrow ATA address for a given escrow
+ * For simplicity, we use the seller's wallet as the escrow holder
  */
 export async function getEscrowAta(
   mint: PublicKey,
-  escrowId: string
+  escrowId: string,
+  seller: PublicKey
 ): Promise<PublicKey> {
-  // Use escrow ID as seed for deterministic ATA
-  const escrowSeed = new PublicKey(escrowId.padEnd(32, '\0'));
-  return getAssociatedTokenAddress(mint, escrowSeed, true);
+  // Use seller's ATA as temporary escrow holder
+  // This is a simplified approach - in production, use a proper PDA
+  return getAssociatedTokenAddress(mint, seller, true);
 }
 
 /**

@@ -124,7 +124,7 @@ export default function FundPage() {
         return;
       }
       
-      const escrowAta = await getEscrowAta(mint, id);
+      const escrowAta = await getEscrowAta(mint, id, seller);
       
       // Convert amount to smallest units (6 decimals for USDC)
       const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);
