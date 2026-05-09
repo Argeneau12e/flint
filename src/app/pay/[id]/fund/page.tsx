@@ -128,11 +128,11 @@ export default function FundPage() {
         throw new Error(createResult.error || 'Failed to create escrow');
       }
       
-      console.log('✅ escro escrow created:', createResult);
+      console.log('✅ Squads escrow created:', createResult);
       
-      // For MVP: Skip on-chain transaction (mock mode)
-      // TODO: Implement proper transaction signing when escro API is ready
-      const signature = createResult.unsignedTransaction || `mock_${Date.now()}`;
+      // For now: Use backend-tracked escrow (Squads integration in progress)
+      // TODO: Implement actual Squads vault creation + USDC transfer
+      const signature = `squads_${Date.now()}`;
 
       // Update backend with escrow ID
       const res = await fetch("/api/escrow/fund", {

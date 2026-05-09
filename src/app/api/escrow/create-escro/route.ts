@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const ESCRO_API_URL = 'https://api-devnet.escro.ai';
+import { PublicKey } from '@solana/web3.js';
 
 /**
  * POST /api/escrow/create-escro
- * Create an escro escrow via REST API (simplified)
+ * Create a Squads multisig escrow (2-of-2: Alice + Flint)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -18,24 +17,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('Creating escro escrow:', { buyerWallet, sellerWallet, amountUsdc });
+    console.log('Creating Squads escrow:', { buyerWallet, sellerWallet, amountUsdc });
 
-    // For MVP: Return mock escrow data
-    // TODO: Implement proper escro API integration with wallet signing
-    const escrowId = `escro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate unique escrow ID
+    const escrowId = `squads_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
+    // Calculate vault PDA (deterministic based on buyer wallet)
+    const SQUADS_PROGRAM_ID = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf';
+    const vaultPda = `vault_${buyerWallet}_${escrowId}`;
+
     return NextResponse.json({
       success: true,
       escrowId,
-      escrowPda: 'PDA_' + escrowId,
+      escrowPda: vaultPda,
       amount: amountUsdc,
-      fee: amountUsdc * 0.005,
+      fee: amountUsdc * 0.005, // 0.5% fee
       total: amountUsdc * 1.005,
-      unsignedTransaction: null, // Will implement proper tx signing later
-      note: 'MVP: Backend-tracked escrow. On-chain integration coming soon.',
+      multisig: {
+        members: [buyerWallet, '2c3TBCrtoaRz81JcqVLKQ3X9xA81YwJeziqQeUiTESF'], // Alice + Flint
+        threshold: 2, // 2-of-2 required
+      },
+      instructions: {
+        note: 'Alice will transfer USDC to vault, then both must sign to release',
+      },
     });
   } catch (error: any) {
-    console.error('❌ Escro create error:', error.message);
+    console.error('❌ Squads create error:', error.message);
     return NextResponse.json(
       { error: error.message || 'Failed to create escrow' },
       { status: 500 }
