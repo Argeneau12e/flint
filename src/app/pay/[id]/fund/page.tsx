@@ -153,13 +153,9 @@ export default function FundPage() {
       } else {
         setError(data.error || 'Failed to fund escrow');
       }
-      } else {
-        setError(data.error || "Failed to fund escrow");
-      }
     } catch (err: any) {
       console.error('Fund error:', err);
-      // Even if API fails, redirect (minimal schema mode)
-      router.push(`/pay/${id}`);
+      setError(err.message || 'Failed to fund escrow');
     } finally {
       setFunding(false);
     }
