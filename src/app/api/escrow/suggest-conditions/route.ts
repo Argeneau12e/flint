@@ -102,8 +102,8 @@ Your response:`;
       const responseText = (result as any).text || "";
       const conditions = responseText
         .split('\n')
-        .map(line => line.replace(/^[-•*]\s*/, '').trim())
-        .filter(line => line.length > 10 && line.length < 200)
+        .map((line: string) => line.replace(/^[-•*]\s*/, '').trim())
+        .filter((line: string) => line.length > 10 && line.length < 200)
         .slice(0, 5);
 
       console.log("AI suggested conditions:", conditions);
