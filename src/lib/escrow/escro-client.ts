@@ -5,14 +5,22 @@
  */
 
 import { Escro } from '@escro/sdk';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, clusterApiUrl } from '@solana/web3.js';
 
 // Use devnet for testing
 const ESCRO_API_URL = 'https://api-devnet.escro.ai';
+const RPC_URL = clusterApiUrl('devnet');
 
 // Initialize escro client
+// Note: wallet is passed per-request when signing transactions
 export const escroClient = new Escro({
   apiUrl: ESCRO_API_URL,
+  rpcUrl: RPC_URL,
+  wallet: {
+    publicKey: PublicKey.default,
+    signTransaction: async (tx: any) => tx,
+    signAllTransactions: async (txs: any[]) => txs,
+  } as any,
 });
 
 /**
