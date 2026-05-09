@@ -131,15 +131,14 @@ export default function FundPage() {
       console.log('✅ escro escrow created:', createResult);
       
       // Step 2: Buyer signs transaction with Phantom
-      if (!result.unsignedTransaction) {
+      if (!createResult.unsignedTransaction) {
         throw new Error('No transaction to sign');
       }
       
-      const provider = (window as any).solana;
-      const { VersionedTransaction, PublicKey, Connection } = await import('@solana/web3.js');
+      const { VersionedTransaction, Connection } = await import('@solana/web3.js');
       
       // Deserialize transaction
-      const txBytes = Buffer.from(result.unsignedTransaction, 'base64');
+      const txBytes = Buffer.from(createResult.unsignedTransaction, 'base64');
       const transaction = VersionedTransaction.deserialize(txBytes);
       
       // Sign with Phantom
