@@ -50,11 +50,18 @@ export async function createEscrowPaymentInstruction(
 
   const transaction = new Transaction();
 
-  // Ensure escrow ATA exists
+  // Check if escrow ATA exists
+  let escrowAtaExists = false;
   try {
-    await connection.getAccountInfo(escrowAta);
+    const accountInfo = await connection.getAccountInfo(escrowAta);
+    escrowAtaExists = accountInfo !== null;
   } catch (err) {
-    // Create escrow ATA if it doesn't exist
+    escrowAtaExists = false;
+  }
+
+  // Create escrow ATA if it doesn't exist
+  if (!escrowAtaExists) {
+    console.log('Creating escrow ATA...');
     transaction.add(
       createAssociatedTokenAccountInstruction(
         config.buyer, // payer
@@ -66,6 +73,7 @@ export async function createEscrowPaymentInstruction(
   }
 
   // Transfer tokens from buyer to escrow
+  console.log('Adding transfer instruction...');
   transaction.add(
     createTransferInstruction(
       buyerAta,

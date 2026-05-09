@@ -152,12 +152,22 @@ export default function FundPage() {
       );
 
       // Fetch latest blockhash
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = buyer;
+      transaction.lastValidBlockHeight = lastValidBlockHeight;
+
+      console.log('Transaction prepared:', {
+        instructions: transaction.instructions.length,
+        feePayer: transaction.feePayer?.toString(),
+        recentBlockhash: blockhash,
+      });
 
       // Step 4: Sign and send transaction
-      const signature = await provider.signAndSendTransaction(transaction);
+      const signature = await provider.signAndSendTransaction(transaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
       
       // Step 5: Wait for confirmation
       const confirmation = await connection.confirmTransaction(signature.signature, 'confirmed');
@@ -186,12 +196,16 @@ export default function FundPage() {
       }
     } catch (err: any) {
       console.error('Fund error:', err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
+      
       // Provide helpful error message
       let errorMsg = err.message || 'Failed to fund escrow';
       if (errorMsg.includes('Insufficient funds')) {
         errorMsg = 'Insufficient USDC balance. Get devnet USDC from faucet.';
       } else if (errorMsg.includes('blockhash')) {
         errorMsg = 'Transaction expired. Please try again.';
+      } else if (errorMsg.includes('Unexpected error')) {
+        errorMsg = 'Phantom rejected the transaction. Check console for details.';
       }
       setError(errorMsg);
     } finally {
