@@ -147,7 +147,7 @@ function CreatePageInner() {
       });
       const data = await res.json();
       if (data.escrow?.id) {
-        router.push(`/pay/${data.escrow.id}`);
+        router.push(`/invoice/${data.escrow.id}`);
       } else {
         setError(data.error || "Something went wrong. Please try again.");
       }
