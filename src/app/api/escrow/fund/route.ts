@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch escrow
     const { data: escrow, error: fetchError } = await supabase
-      .from('escrows')
+      .from('escrow_invoices')
       .select('*')
       .eq('id', escrowId)
       .single();
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     const fundedAt = new Date().toISOString();
     
     const { error: updateError } = await supabase
-      .from('escrows')
+      .from('escrow_invoices')
       .update({
         state: EscrowState.FUNDED_ACTIVE,
         funded_at: fundedAt,

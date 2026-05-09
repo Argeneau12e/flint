@@ -109,7 +109,7 @@ export default function FundPage() {
         amount: escrow.totalAmount,
       });
       
-      // Create escro escrow via server API
+      // Step 1: Create escro escrow via server API
       const createRes = await fetch('/api/escrow/create-escro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,24 +122,53 @@ export default function FundPage() {
         }),
       });
       
-      const result = await createRes.json();
+      const createResult = await createRes.json();
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create escrow');
+      if (!createResult.success) {
+        throw new Error(createResult.error || 'Failed to create escrow');
       }
       
-      console.log('✅ escro escrow created:', result);
+      console.log('✅ escro escrow created:', createResult);
+      
+      // Step 2: Buyer signs transaction with Phantom
+      if (!result.unsignedTransaction) {
+        throw new Error('No transaction to sign');
+      }
+      
+      const provider = (window as any).solana;
+      const { VersionedTransaction, PublicKey, Connection } = await import('@solana/web3.js');
+      
+      // Deserialize transaction
+      const txBytes = Buffer.from(result.unsignedTransaction, 'base64');
+      const transaction = VersionedTransaction.deserialize(txBytes);
+      
+      // Sign with Phantom
+      const signedTx = await provider.signTransaction(transaction);
+      
+      // Step 3: Submit signed transaction to Solana
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signature = await connection.sendTransaction(signedTx);
+      
+      // Step 4: Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed on-chain');
+      }
+      
+      console.log('✅ Transaction confirmed:', signature);
 
-      // Step 6: Update backend with escro escrow ID
+      // Step 5: Update backend with escro escrow ID and tx signature
       const res = await fetch("/api/escrow/fund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           escrowId: id,
           buyerWallet: userWallet,
-          txSignature: result.escrowId, // escro escrow ID
-          escroPda: result.escrowPda,
-          amount: result.total, // Buyer pays amount + fee
+          txSignature: signature, // On-chain transaction signature
+          escroPda: createResult.escrowPda,
+          escroId: createResult.escrowId,
+          amount: createResult.total,
         }),
       });
 
