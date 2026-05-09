@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, clusterApiUrl } from '@solana/web3.js';
 import { Escro } from '@escro/sdk';
-import { clusterApiUrl } from '@solana/web3.js';
 
 const ESCRO_API_URL = 'https://api-devnet.escro.ai';
 const RPC_URL = clusterApiUrl('devnet');
@@ -24,10 +23,15 @@ export async function POST(req: NextRequest) {
 
     console.log('Creating escro escrow:', { buyerWallet, sellerWallet, amountUsdc });
 
-    // Initialize escro client (server-side, no wallet needed for creation)
+    // Initialize escro client with dummy wallet (will be overridden by buyer's signature)
     const client = new Escro({
       apiUrl: ESCRO_API_URL,
       rpcUrl: RPC_URL,
+      wallet: {
+        publicKey: PublicKey.default,
+        signTransaction: async (tx: any) => tx,
+        signAllTransactions: async (txs: any[]) => txs,
+      } as any,
     });
 
     // Create escrow
