@@ -24,14 +24,16 @@ export async function POST(req: NextRequest) {
     console.log('Creating escro escrow:', { buyerWallet, sellerWallet, amountUsdc });
 
     // Initialize escro client with dummy wallet (will be overridden by buyer's signature)
+    const dummyWallet = {
+      publicKey: new PublicKey('11111111111111111111111111111111'),
+      signTransaction: async (tx: any) => tx,
+      signAllTransactions: async (txs: any[]) => txs,
+    };
+    
     const client = new Escro({
       apiUrl: ESCRO_API_URL,
       rpcUrl: RPC_URL,
-      wallet: {
-        publicKey: PublicKey.default,
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      } as any,
+      wallet: dummyWallet,
     });
 
     // Create escrow
