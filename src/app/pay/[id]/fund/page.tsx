@@ -93,6 +93,9 @@ export default function FundPage() {
 
       const escrow = statusData.escrow;
       
+      // Debug: Log escrow data
+      console.log('Escrow data:', escrow);
+      
       // Step 2: Connect to Solana
       const provider = (window as any).solana;
       if (!provider) {
@@ -108,16 +111,34 @@ export default function FundPage() {
       // Step 3: Create and send transaction
       const { createEscrowPaymentInstruction, getEscrowAta } = await import('@/lib/solana/simple-escrow');
       
+      // Validate escrow data
+      if (!escrow.token_mint || !escrow.creator_wallet) {
+        setError('Invalid escrow configuration');
+        setFunding(false);
+        return;
+      }
+      
       const mint = new PublicKey(escrow.token_mint);
       const seller = new PublicKey(escrow.creator_wallet);
       const buyer = new PublicKey(userWallet);
       
       const escrowAta = await getEscrowAta(mint, id);
       
+      // Convert amount to smallest units (6 decimals for USDC)
+      const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);
+      
+      console.log('Creating escrow transaction:', {
+        mint: mint.toString(),
+        seller: seller.toString(),
+        buyer: buyer.toString(),
+        amount: amountInSmallestUnits,
+        escrowId: id,
+      });
+      
       const transaction = await createEscrowPaymentInstruction(
         connection,
         {
-          amount: escrow.totalAmount * 1000000, // Convert to lamports/smallest unit
+          amount: amountInSmallestUnits,
           mint,
           seller,
           buyer,
