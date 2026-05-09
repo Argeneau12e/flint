@@ -207,6 +207,7 @@ export async function cancelEscroEscrow(escrowId: string, buyerWallet: PublicKey
 
 /**
  * Raise dispute
+ * Note: Using REST API directly as SDK method may vary
  */
 export async function raiseEscroDispute(
   escrowId: string,
@@ -216,7 +217,19 @@ export async function raiseEscroDispute(
   try {
     console.log('Raising dispute:', escrowId, reason);
     
-    await escroClient.dispute(escrowId, { reason });
+    // Dispute via REST API (SDK method name may vary)
+    const response = await fetch(`${ESCRO_API_URL}/v1/escrows/${escrowId}/dispute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err || 'Dispute failed');
+    }
     
     console.log('✅ Dispute raised:', escrowId);
     return {
