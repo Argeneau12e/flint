@@ -178,10 +178,10 @@ function InvoiceCreatedPageInner() {
         </div>
 
         {/* Share Options */}
-        <div className="flex gap-3 mb-8">
+        <div className="mb-8">
           <button
             onClick={shareViaEmail}
-            className="flex-1 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
             style={{ 
               background: "rgba(15,15,15,0.5)",
               border: "1px solid rgba(255,255,255,0.07)",
@@ -190,17 +190,6 @@ function InvoiceCreatedPageInner() {
           >
             <ShareIcon />
             Share via Email
-          </button>
-          <button
-            onClick={() => router.push(`/pay/${params.id}`)}
-            className="flex-1 py-3 rounded-xl font-medium transition-all"
-            style={{ 
-              background: "rgba(255,107,43,0.15)",
-              border: "1px solid rgba(255,107,43,0.3)",
-              color: "var(--spark)",
-            }}
-          >
-            Preview Page
           </button>
         </div>
 
