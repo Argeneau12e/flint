@@ -75,29 +75,84 @@ export default function FundPage() {
     // If not connected, connect first
     if (!walletConnected) {
       await connectWallet();
-      // After connecting, user clicks fund again
       return;
     }
 
-    // Already connected, proceed with funding
     setFunding(true);
     try {
+      // Step 1: Get escrow details
+      const statusRes = await fetch(`/api/escrow/status?id=${id}`);
+      const statusData = await statusRes.json();
+      
+      if (!statusData.escrow) {
+        setError('Escrow not found');
+        setFunding(false);
+        return;
+      }
+
+      const escrow = statusData.escrow;
+      
+      // Step 2: Connect to Solana
+      const provider = (window as any).solana;
+      if (!provider) {
+        setError('Phantom wallet not found');
+        setFunding(false);
+        return;
+      }
+
+      const connection = new (await import('@solana/web3.js')).Connection(
+        'https://api.devnet.solana.com'
+      );
+
+      // Step 3: Create and send transaction
+      const { createEscrowPaymentInstruction, getEscrowAta } = await import('@/lib/solana/simple-escrow');
+      
+      const mint = new PublicKey(escrow.token_mint);
+      const seller = new PublicKey(escrow.creator_wallet);
+      const buyer = new PublicKey(userWallet);
+      
+      const escrowAta = await getEscrowAta(mint, id);
+      
+      const transaction = await createEscrowPaymentInstruction(
+        connection,
+        {
+          amount: escrow.totalAmount * 1000000, // Convert to lamports/smallest unit
+          mint,
+          seller,
+          buyer,
+          escrowId: id,
+        },
+        escrowAta
+      );
+
+      // Step 4: Sign and send transaction
+      const signature = await provider.signAndSendTransaction(transaction);
+      
+      // Step 5: Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature.signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed on-chain');
+      }
+
+      // Step 6: Update backend with tx signature
       const res = await fetch("/api/escrow/fund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           escrowId: id,
           buyerWallet: userWallet,
+          txSignature: signature.signature,
         }),
       });
 
       const data = await res.json();
       if (data.success || res.ok) {
-        console.log('Fund success');
-        // Mark as funded in session storage
         sessionStorage.setItem(`funded_${id}`, 'true');
-        // Redirect to pay page
         router.push(`/pay/${id}`);
+      } else {
+        setError(data.error || 'Failed to fund escrow');
+      }
       } else {
         setError(data.error || "Failed to fund escrow");
       }
