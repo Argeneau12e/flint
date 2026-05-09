@@ -75,15 +75,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: In production, verify blockchain transaction here
-    // For demo mode, we just check if txSignature is provided (optional)
+    // Verify blockchain transaction in production mode
     const isDemoMode = process.env.ESCROW_MODE !== 'production';
     
-    if (!isDemoMode && !txSignature) {
-      return NextResponse.json(
-        { error: 'Transaction signature required in production mode' },
-        { status: 400 }
+    if (!isDemoMode) {
+      if (!txSignature) {
+        return NextResponse.json(
+          { error: 'Transaction signature required in production mode' },
+          { status: 400 }
+        );
+      }
+      
+      // Verify transaction on-chain
+      const connection = new Connection(
+        process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
       );
+      
+      try {
+        const confirmation = await connection.confirmTransaction(txSignature, 'confirmed');
+        if (confirmation.value.err) {
+          return NextResponse.json(
+            { error: 'Transaction failed on-chain', details: confirmation.value.err },
+            { status: 400 }
+          );
+        }
+        console.log('✅ Transaction confirmed on Solana:', txSignature);
+      } catch (err: any) {
+        console.error('Transaction confirmation error:', err);
+        return NextResponse.json(
+          { error: 'Failed to confirm transaction', details: err.message },
+          { status: 400 }
+        );
+      }
     }
 
     // Update escrow: transition to FUNDED_ACTIVE
