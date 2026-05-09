@@ -93,9 +93,6 @@ export default function FundPage() {
 
       const escrow = statusData.escrow;
       
-      // Debug: Log escrow data
-      console.log('Escrow data:', escrow);
-      
       // Step 2: Connect to Solana
       const provider = (window as any).solana;
       if (!provider) {
@@ -111,16 +108,21 @@ export default function FundPage() {
       // Step 3: Create and send transaction
       const { createEscrowPaymentInstruction, getEscrowAta } = await import('@/lib/solana/simple-escrow');
       
-      // Validate escrow data
-      if (!escrow.token_mint || !escrow.creator_wallet) {
-        setError('Invalid escrow configuration');
+      // Map escrow fields (database uses different names than expected)
+      const tokenSymbol = escrow.token || 'USDC';
+      const sellerWallet = escrow.creator || escrow.creator_wallet;
+      
+      // Use USDC devnet mint address
+      const USDC_DEVNET_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const mint = new PublicKey(USDC_DEVNET_MINT);
+      const seller = new PublicKey(sellerWallet);
+      const buyer = new PublicKey(userWallet);
+      
+      if (!sellerWallet) {
+        setError('Invalid escrow: missing creator');
         setFunding(false);
         return;
       }
-      
-      const mint = new PublicKey(escrow.token_mint);
-      const seller = new PublicKey(escrow.creator_wallet);
-      const buyer = new PublicKey(userWallet);
       
       const escrowAta = await getEscrowAta(mint, id);
       
@@ -128,6 +130,7 @@ export default function FundPage() {
       const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);
       
       console.log('Creating escrow transaction:', {
+        tokenSymbol,
         mint: mint.toString(),
         seller: seller.toString(),
         buyer: buyer.toString(),
