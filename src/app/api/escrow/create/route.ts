@@ -13,13 +13,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       creator, // Seller wallet
-      aliceWhatsapp, // Alice's WhatsApp (for notifications)
-      amount, // In token units (what Alice pays)
+      clientEmail, // Client's email (for notifications)
+      amount, // In token units (what client pays)
       token, // SOL, USDC, or USDT
       title,
       description,
+      condition, // Service conditions (required)
       feeTier = 'FREE',
-      deliveryDays = 7, // How long Bob has to deliver
+      deliveryDays = 7, // How long seller has to deliver
       linkExpiryDays = 3, // How long link is valid
     } = body;
 
@@ -38,8 +39,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Alice's WhatsApp is optional (but recommended for notifications)
-    const aliceWhatsappNum = aliceWhatsapp || '';
+    if (!clientEmail || typeof clientEmail !== 'string' || !clientEmail.includes('@')) {
+      return NextResponse.json(
+        { error: 'Valid client email is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!condition || typeof condition !== 'string' || condition.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'Service conditions are required (minimum 10 characters)' },
+        { status: 400 }
+      );
+    }
 
     if (!token || !SUPPORTED_TOKENS[token as keyof typeof SUPPORTED_TOKENS]) {
       return NextResponse.json(
@@ -103,8 +115,8 @@ export async function POST(req: NextRequest) {
         .from('escrows')
         .insert([{
           creator_wallet: creator,
-          buyer_wallet: '', // Unknown until Alice funds
-          alice_whatsapp: aliceWhatsappNum || null,
+          buyer_wallet: '', // Unknown until client funds
+          client_email: clientEmail,
           amount: totalAmount,
           token_mint: SUPPORTED_TOKENS[token as keyof typeof SUPPORTED_TOKENS].mint,
           token_symbol: token,
@@ -116,6 +128,7 @@ export async function POST(req: NextRequest) {
           state: EscrowState.DRAFT,
           title,
           description,
+          condition,
           link_expires_at: new Date(linkExpiresAt).toISOString(),
           delivery_deadline: deliveryDeadline,
           review_deadline: reviewDeadline,
