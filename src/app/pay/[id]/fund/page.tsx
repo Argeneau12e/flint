@@ -130,34 +130,11 @@ export default function FundPage() {
       
       console.log('✅ escro escrow created:', createResult);
       
-      // Step 2: Buyer signs transaction with Phantom
-      if (!createResult.unsignedTransaction) {
-        throw new Error('No transaction to sign');
-      }
-      
-      const { VersionedTransaction, Connection } = await import('@solana/web3.js');
-      
-      // Deserialize transaction
-      const txBytes = Buffer.from(createResult.unsignedTransaction, 'base64');
-      const transaction = VersionedTransaction.deserialize(txBytes);
-      
-      // Sign with Phantom
-      const signedTx = await provider.signTransaction(transaction);
-      
-      // Step 3: Submit signed transaction to Solana
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-      const signature = await connection.sendTransaction(signedTx);
-      
-      // Step 4: Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      
-      if (confirmation.value.err) {
-        throw new Error('Transaction failed on-chain');
-      }
-      
-      console.log('✅ Transaction confirmed:', signature);
+      // For MVP: Skip on-chain transaction (mock mode)
+      // TODO: Implement proper transaction signing when escro API is ready
+      const signature = createResult.unsignedTransaction || `mock_${Date.now()}`;
 
-      // Step 5: Update backend with escro escrow ID and tx signature
+      // Update backend with escrow ID
       const res = await fetch("/api/escrow/fund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
