@@ -101,6 +101,7 @@ export default function FundPage() {
         return;
       }
 
+      // Use devnet for testing
       const connection = new (await import('@solana/web3.js')).Connection(
         'https://api.devnet.solana.com'
       );
@@ -112,8 +113,8 @@ export default function FundPage() {
       const tokenSymbol = escrow.token || 'USDC';
       const sellerWallet = escrow.creator || escrow.creator_wallet;
       
-      // Use USDC devnet mint address
-      const USDC_DEVNET_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      // Use USDC devnet mint address (different from mainnet!)
+      const USDC_DEVNET_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
       const mint = new PublicKey(USDC_DEVNET_MINT);
       const seller = new PublicKey(sellerWallet);
       const buyer = new PublicKey(userWallet);
@@ -185,7 +186,14 @@ export default function FundPage() {
       }
     } catch (err: any) {
       console.error('Fund error:', err);
-      setError(err.message || 'Failed to fund escrow');
+      // Provide helpful error message
+      let errorMsg = err.message || 'Failed to fund escrow';
+      if (errorMsg.includes('Insufficient funds')) {
+        errorMsg = 'Insufficient USDC balance. Get devnet USDC from faucet.';
+      } else if (errorMsg.includes('blockhash')) {
+        errorMsg = 'Transaction expired. Please try again.';
+      }
+      setError(errorMsg);
     } finally {
       setFunding(false);
     }
