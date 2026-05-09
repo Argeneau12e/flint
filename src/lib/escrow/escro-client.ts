@@ -4,7 +4,7 @@
  * Docs: https://escro.ai/docs
  */
 
-import { EscroClient } from '@escro/sdk';
+import { Escro } from '@escro/sdk';
 import { clusterApiUrl, Connection, PublicKey } from '@solana/web3.js';
 
 // Use devnet for testing
@@ -12,7 +12,7 @@ const ESCRO_API_URL = 'https://api-devnet.escro.ai';
 const SOLANA_RPC_URL = clusterApiUrl('devnet');
 
 // Initialize escro client
-export const escroClient = new EscroClient({
+export const escroClient = new Escro({
   apiUrl: ESCRO_API_URL,
   connection: new Connection(SOLANA_RPC_URL, 'confirmed'),
 });
