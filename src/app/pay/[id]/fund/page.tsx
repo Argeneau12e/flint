@@ -125,7 +125,8 @@ export default function FundPage() {
         return;
       }
       
-      const escrowAta = await getEscrowAta(mint, id, seller);
+      // Get neutral escrow PDA (not seller's wallet!)
+      const escrowAta = await getEscrowAta(mint, id);
       
       // Convert amount to smallest units (6 decimals for USDC)
       const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);

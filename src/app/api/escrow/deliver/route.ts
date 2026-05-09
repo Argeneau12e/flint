@@ -1,31 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EscrowState } from '@/lib/escrow/types';
-import { canTransition, getDeadlineForState } from '@/lib/escrow/state-machine';
+import { canTransition } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
 import { notifyWorkDelivered } from '@/lib/notifications';
 
 /**
  * POST /api/escrow/deliver
- * Seller marks work as delivered
- * Transitions: FUNDED_ACTIVE → DELIVERED_REVIEW
- * Starts 7-day review deadline
+ * Seller submits delivery
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { escrowId, sellerWallet, deliveryData } = body;
+    const { escrowId, sellerWallet, deliveryNotes, deliveryUrl } = body;
 
-    if (!escrowId) {
+    if (!escrowId || !sellerWallet) {
       return NextResponse.json(
-        { error: 'Escrow ID required' },
+        { error: 'Escrow ID and seller wallet required' },
         { status: 400 }
       );
     }
 
-    // Get Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!supabaseUrl || !supabaseServiceKey) {
       return NextResponse.json(
         { error: 'Database not configured' },
@@ -49,7 +46,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate state
+    // Verify seller is the one delivering
+    if (escrow.creator_wallet !== sellerWallet) {
+      return NextResponse.json(
+        { error: 'Only the seller can submit delivery' },
+        { status: 403 }
+      );
+    }
+
+    // Check state transition (FUNDED_ACTIVE → WORK_DELIVERED)
     if (escrow.state !== EscrowState.FUNDED_ACTIVE) {
       return NextResponse.json(
         { error: `Invalid state for delivery: ${escrow.state}. Expected: funded_active` },
@@ -57,68 +62,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify seller is the creator
-    if (escrow.creator_wallet !== sellerWallet) {
-      return NextResponse.json(
-        { error: 'Only the seller can mark as delivered' },
-        { status: 403 }
-      );
-    }
-
-    // Check if transition is valid
-    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.DELIVERED_REVIEW, 'creator')) {
+    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.WORK_DELIVERED, 'seller')) {
       return NextResponse.json(
         { error: 'Invalid state transition' },
         { status: 400 }
       );
     }
 
-    // Calculate review deadline (7 days from now)
-    const reviewDeadline = getDeadlineForState(EscrowState.DELIVERED_REVIEW, Date.now());
-
-    // Update escrow: transition to DELIVERED_REVIEW
+    // Update escrow
     const deliveredAt = new Date().toISOString();
     
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
-        state: EscrowState.DELIVERED_REVIEW,
+        state: EscrowState.WORK_DELIVERED,
         delivered_at: deliveredAt,
-        review_deadline: reviewDeadline,
-        dispute_evidence: deliveryData ? JSON.stringify(deliveryData) : null,
+        delivery_notes: deliveryNotes || null,
+        delivery_url: deliveryUrl || null,
       })
       .eq('id', escrowId);
 
     if (updateError) {
       console.error('Deliver update error:', updateError);
       return NextResponse.json(
-        { error: 'Failed to mark as delivered', details: updateError },
+        { error: 'Failed to submit delivery', details: updateError },
         { status: 500 }
       );
     }
 
-    console.log('✅ Escrow delivered:', escrowId, 'Review deadline:', new Date(reviewDeadline).toISOString());
+    console.log('✅ Work delivered:', escrowId);
 
-    // Send notification to buyer
+    // Send notification to buyer (Alice)
     try {
-      await notifyWorkDelivered(
-        escrow.buyer_wallet || '',
-        undefined,
-        escrow.title,
-        escrowId
-      );
+      // Get buyer wallet from escrow (we'll need to store this when creating escrow)
+      const buyerWallet = escrow.client_wallet || escrow.buyer_wallet;
+      if (buyerWallet) {
+        await notifyWorkDelivered(
+          buyerWallet,
+          undefined,
+          escrow.title,
+          escrowId
+        );
+      }
     } catch (err) {
       console.error('Notification error:', err);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Work marked as delivered. Buyer has 7 days to review.',
+      message: 'Delivery submitted successfully',
       escrow: {
         id: escrowId,
-        state: EscrowState.DELIVERED_REVIEW,
+        state: EscrowState.WORK_DELIVERED,
         delivered_at: deliveredAt,
-        review_deadline: reviewDeadline,
       },
     });
   } catch (error: any) {

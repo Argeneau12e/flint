@@ -149,17 +149,34 @@ export async function createRefundInstruction(
 }
 
 /**
- * Get escrow ATA address for a given escrow
- * For simplicity, we use the seller's wallet as the escrow holder
+ * Get escrow PDA address - a neutral account controlled by the program
+ * Neither buyer nor seller can access funds alone
+ */
+export async function getEscrowPda(escrowId: string): Promise<PublicKey> {
+  // Remove hyphens from UUID for seed
+  const cleanId = escrowId.replace(/-/g, '');
+  const seed = Buffer.from(cleanId, 'hex');
+  
+  // Create PDA using Flint's program ID
+  const FLINT_PROGRAM_ID = new PublicKey('FLNT1111111111111111111111111111111111111111');
+  
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('flint_escrow'), seed],
+    FLINT_PROGRAM_ID
+  );
+  
+  return pda;
+}
+
+/**
+ * Get escrow ATA address - tokens are held in escrow PDA's ATA
  */
 export async function getEscrowAta(
   mint: PublicKey,
-  escrowId: string,
-  seller: PublicKey
+  escrowId: string
 ): Promise<PublicKey> {
-  // Use seller's ATA as temporary escrow holder
-  // This is a simplified approach - in production, use a proper PDA
-  return getAssociatedTokenAddress(mint, seller, true);
+  const escrowPda = await getEscrowPda(escrowId);
+  return getAssociatedTokenAddress(mint, escrowPda, true);
 }
 
 /**

@@ -1,632 +1,155 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import FlintLoader from "@/components/flint-loader";
-import UsernameSignup from "@/components/account/UsernameSignup";
-import UsageTracker from "@/components/UsageTracker";
-import { getUserByWallet, checkUsernameAvailable } from "@/lib/supabase";
-import { getTierFromPoints as getBadgeTier } from "@/components/account/ReputationBadge";
-import {
-  getSolanaProvider,
-  WALLET_NOT_FOUND_MSG,
-  isMobileBrowser,
-  isInsidePhantomBrowser,
-  generateDappKeypair,
-  buildPhantomConnectUrl,
-  buildSolflareConnectUrl,
-  decryptWalletConnectResponse,
-} from "@/lib/wallet";
-
-interface Invoice {
-  id: string;
-  title: string;
-  amount: number;
-  token: string;
-  status: string;
-  createdAt: number;
-  expiresAt: number;
-  memo: string;
-  handle?: string;
-  txSignature?: string;
-}
-
-interface Stats {
-  total: number;
-  paid: number;
-  pending: number;
-  expired: number;
-  totalEarned: number;
-  successRate: number;
-}
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import NotificationsBell from "@/components/dashboard/NotificationsBell";
+import PendingWork from "@/components/dashboard/PendingWork";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [wallet, setWallet] = useState("");
-  const [connected, setConnected] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [showAllInvoices, setShowAllInvoices] = useState(false);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [connecting, setConnecting] = useState(false); // decrypting wallet callback
-  const [connectingInit, setConnectingInit] = useState(false); // button click -> redirect
-  const [mobileMode, setMobileMode] = useState(false); // mobile without injected wallet
-  const [error, setError] = useState("");
-  
-  // Account system state
-  const [hasAccount, setHasAccount] = useState(false);
-  const [checkingAccount, setCheckingAccount] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-  const [userAccount, setUserAccount] = useState<any>(null);
+  const searchParams = useSearchParams();
+  const [walletAddress, setWalletAddress] = useState("");
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState<"pending" | "completed" | "notifications">("pending");
 
-  const fetchDashboard = useCallback(async (address: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/dashboard?wallet=${address}`);
-      const data = await res.json();
-      setInvoices(data.invoices || []);
-      setStats(data.stats);
-    } catch {
-      setError("Failed to load dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Check if user has Supabase account
-  const checkUserAccount = useCallback(async (address: string) => {
-    setCheckingAccount(true);
-    try {
-      const user = await getUserByWallet(address);
-      if (user) {
-        setHasAccount(true);
-        setUserAccount({
-          username: user.username,
-          displayName: user.display_name || user.username,
-          badgeTier: user.reputation?.[0]?.badge_tier || getBadgeTier(user.reputation?.[0]?.points || 0),
-          points: user.reputation?.[0]?.points || 0,
-        });
-      } else {
-        setHasAccount(false);
-        setShowSignup(true); // Show signup modal for new users
-      }
-    } catch (err) {
-      console.error('Check account error:', err);
-      setHasAccount(false);
-    } finally {
-      setCheckingAccount(false);
-    }
-  }, []);
-
-  // On mount: handle wallet callback params OR restore session OR detect mobile
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-
-    // ── Phantom callback ───────────────────────────────────────────────────
-    const phantomPubKey = params.get("phantom_encryption_public_key");
-    // ── Solflare callback ──────────────────────────────────────────────────
-    const solflarePubKey = params.get("solflare_encryption_public_key");
-
-    const nonce = params.get("nonce");
-    const data = params.get("data");
-    const errorCode = params.get("errorCode");
-
-    // User denied connection in wallet app
-    if (errorCode) {
-      const msg = params.get("errorMessage") || "Connection was denied. Please try again.";
-      setError(msg);
-      window.history.replaceState({}, "", "/dashboard");
-      setMobileMode(true);
-      return;
+    checkWallet();
+    
+    // Check for tab param from notifications
+    const tab = searchParams.get('tab');
+    if (tab === 'notifications') {
+      setActiveTab('notifications');
     }
+  }, [searchParams]);
 
-    // We got a wallet response — decrypt it
-    const walletPubKey = phantomPubKey || solflarePubKey;
-    if (walletPubKey && nonce && data) {
-      const dappSecretKey = localStorage.getItem("flint_dapp_secret");
-      console.log("Wallet callback:", { hasSecretKey: !!dappSecretKey });
-      if (dappSecretKey) {
-        setConnecting(true);
-        decryptWalletConnectResponse(walletPubKey, nonce, data, dappSecretKey)
-          .then((result) => {
-            console.log("Decrypted wallet:", result?.public_key);
-            if (result?.public_key) {
-              localStorage.setItem("flint_wallet", result.public_key);
-              localStorage.removeItem("flint_dapp_secret");
-              setWallet(result.public_key);
-              setConnected(true);
-              fetchDashboard(result.public_key);
-              checkUserAccount(result.public_key); // Check for Supabase account
-            } else {
-              setError("Could not verify wallet response.");
-            }
-          })
-          .catch((err) => {
-            console.error("Decrypt failed:", err);
-            setError("Connection failed.");
-          })
-          .finally(() => {
-            setConnecting(false);
-            window.history.replaceState({}, "", "/dashboard");
-          });
-      } else {
-        console.error("No secret key in localStorage");
-        setError("Session expired. Please try again.");
-        window.history.replaceState({}, "", "/dashboard");
-      }
-      return;
-    }
-
-    // ── Restore previously connected mobile wallet ──────────────────────────
-    const cachedWallet = localStorage.getItem("flint_wallet");
-    if (cachedWallet) {
-      setWallet(cachedWallet);
-      setConnected(true);
-      fetchDashboard(cachedWallet);
-      checkUserAccount(cachedWallet); // Check for Supabase account
-      return;
-    }
-
-    // ── Desktop / Phantom in-app browser: try injected provider ───────────
-    if (!isMobileBrowser() || isInsidePhantomBrowser()) {
-      const provider = getSolanaProvider();
-      if (provider?.publicKey) {
-        const address = provider.publicKey.toString();
-        setWallet(address);
-        setConnected(true);
-        fetchDashboard(address);
-        checkUserAccount(address); // Check for Supabase account
-      }
-      // else: desktop user needs to click "Connect Wallet"
-      return;
-    }
-
-    // ── Regular mobile browser: use deeplink connect ───────────────────────
-    // When user returns from Phantom/Solflare, wallet will be injected
-    // so we can connect automatically
-    if (isMobileBrowser() && !isInsidePhantomBrowser()) {
-      setMobileMode(true);
-      // Check if we just returned from wallet app (wallet now injected)
-      const provider = getSolanaProvider();
-      if (provider?.isConnected || provider?.publicKey) {
-        const address = provider.publicKey?.toString();
-        if (address) {
-          setWallet(address);
-          setConnected(true);
-          fetchDashboard(address);
-          checkUserAccount(address); // Check for Supabase account
-          return;
-        }
+  const checkWallet = async () => {
+    if ((window as any).solana) {
+      try {
+        const resp = await (window as any).solana.connect();
+        setWalletAddress(resp.publicKey.toString());
+        setWalletConnected(true);
+      } catch (err) {
+        console.error('Wallet not connected');
       }
     }
-  }, [fetchDashboard]);
+  };
 
-  // Desktop injected-wallet connect
   const connectWallet = async () => {
-    setError("");
-    const provider = getSolanaProvider();
-    if (!provider) {
-      setError(WALLET_NOT_FOUND_MSG);
-      return;
+    if ((window as any).solana) {
+      try {
+        const resp = await (window as any).solana.connect();
+        setWalletAddress(resp.publicKey.toString());
+        setWalletConnected(true);
+      } catch (err) {
+        console.error('Wallet connect error:', err);
+      }
+    } else {
+      alert('Phantom wallet not found! Please install it.');
     }
-    try {
-      await provider.connect();
-      const address = provider.publicKey?.toString() ?? "";
-      if (!address) { setError("Could not read wallet address."); return; }
-      setWallet(address);
-      setConnected(true);
-      fetchDashboard(address);
-      checkUserAccount(address); // Check for Supabase account
-    } catch {
-      setError("Connection cancelled or failed. Please try again.");
-    }
-  };
-
-  // Mobile: initiate Phantom deeplink connect
-  const connectWithPhantom = async () => {
-    setError("");
-    setConnectingInit(true);
-    try {
-      const { publicKey, secretKey } = await generateDappKeypair();
-      // Use localStorage instead of sessionStorage (persists across app switches)
-      localStorage.setItem("flint_dapp_secret", secretKey);
-      const redirectUrl = window.location.origin + "/dashboard";
-      const appUrl = window.location.origin;
-      window.location.href = buildPhantomConnectUrl(publicKey, redirectUrl, appUrl);
-    } catch (err) {
-      console.error("Phantom connect error:", err);
-      setError("Could not start Phantom connection. Please try again.");
-      setConnectingInit(false);
-    }
-  };
-
-  // Mobile: initiate Solflare deeplink connect
-  const connectWithSolflare = async () => {
-    setError("");
-    setConnectingInit(true);
-    try {
-      const { publicKey, secretKey } = await generateDappKeypair();
-      localStorage.setItem("flint_dapp_secret", secretKey);
-      const redirectUrl = window.location.origin + "/dashboard";
-      const appUrl = window.location.origin;
-      window.location.href = buildSolflareConnectUrl(publicKey, redirectUrl, appUrl);
-    } catch (err) {
-      console.error("Solflare connect error:", err);
-      setError("Could not start Solflare connection. Please try again.");
-      setConnectingInit(false);
-    }
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const getStatusColor = (invoice: Invoice) => {
-    if (invoice.status === "paid") return "#4ade80";
-    if (Date.now() > invoice.expiresAt) return "#ff6b6b";
-    return "#FFB800";
-  };
-
-  const getStatusLabel = (invoice: Invoice) => {
-    if (invoice.status === "paid") return "Complete";
-    if (Date.now() > invoice.expiresAt) return "Expired";
-    return "Waiting for Payment";
-  };
-
-  // Link expiry countdown
-  const getTimeLeft = (expiresAt: number) => {
-    const left = expiresAt - Date.now();
-    if (left <= 0) return "Expired";
-    const days = Math.floor(left / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((left % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    if (days > 0) return `${days}d ${hours}h left`;
-    if (hours > 0) return `${hours}h left`;
-    return "Expiring soon";
   };
 
   return (
-    <main className="min-h-screen px-5 sm:px-6 py-10 sm:py-14">
-      <div className="max-w-3xl mx-auto">
-
-        {/* Header */}
-        <div className="flex items-start sm:items-center justify-between mb-10 gap-4">
-          <div>
+    <div className="min-h-screen" style={{ background: '#0a0a0a' }}>
+      {/* Header */}
+      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(10,10,10,0.8)' }}>
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold" style={{ color: '#f7f7f5' }}>
+            Dashboard
+          </h1>
+          <div className="flex items-center gap-4">
+            {walletConnected && <NotificationsBell walletAddress={walletAddress} />}
             <button
-              onClick={() => router.push("/")}
-              className="text-sm mb-3 block"
-              style={{ color: "var(--spark)", background: "none", border: "none", cursor: "pointer" }}
+              onClick={connectWallet}
+              className="px-4 py-2 rounded-xl font-semibold text-sm transition-all"
+              style={{ 
+                background: walletConnected ? 'rgba(255,255,255,0.1)' : '#FF6B2B',
+                color: walletConnected ? '#888' : '#0a0a0a',
+              }}
             >
-              ← Back to Flint
-            </button>
-            <h1 className="text-3xl font-medium tracking-wide" style={{ color: "var(--chalk)" }}>
-              Dashboard
-            </h1>
-            {wallet && (
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm font-mono" style={{ color: "#555555" }}>
-                  {wallet.slice(0, 6)}...{wallet.slice(-6)}
-                </p>
-                {hasAccount && userAccount && (
-                  <>
-                    <span className="text-sm" style={{ color: "#888" }}>|</span>
-                    <span className="text-sm font-medium" style={{ color: "#f7f7f5" }}>
-                      {userAccount.username}
-                    </span>
-                    <span
-                      className="inline-flex items-center justify-center w-4 h-4 rounded-full"
-                      style={{
-                        background: userAccount.badgeTier === 'gray' ? '#888888' : 
-                                   userAccount.badgeTier === 'green' ? '#4ade80' : 
-                                   userAccount.badgeTier === 'blue' ? '#3b82f6' : '#fbbf24',
-                        boxShadow: `0 0 10px ${userAccount.badgeTier === 'gray' ? '#88888840' : 
-                                                       userAccount.badgeTier === 'green' ? '#4ade8040' : 
-                                                       userAccount.badgeTier === 'blue' ? '#3b82f640' : '#fbbf2440'}`,
-                      }}
-                      title={`${userAccount.badgeTier.charAt(0).toUpperCase() + userAccount.badgeTier.slice(1)} tier - ${userAccount.points} points`}
-                    >
-                      {/* Verified Badge SVG - User Provided */}
-                      {/* Circle background = tier color, Checkmark = white */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 512 512"
-                        className="w-full h-full p-[12%]"
-                        fill="white"
-                      >
-                        <path d="M490.11,205.16q-15.94-15.43-31.94-31.09-.45-21.69-1.13-43.36c-.6-19.35-9-37.81-23.31-52.15S400.86,55.91,381.49,55.3q-21.72-.67-43.44-1.12Q322.39,38.24,307,22.34C293.11,8.12,275.13.17,256,.18s-37.12,8-50.92,22.16q-15.47,15.93-31.15,31.91-21.72.44-43.43,1.12C90.62,56.73,56.3,91,54.94,130.77q-.67,21.69-1.13,43.36-16,15.65-31.94,31.08C7.68,219-.29,237-.29,256s7.92,37,22.16,50.84q15.94,15.42,32,31.05.43,21.69,1.12,43.39c.61,19.38,9,37.79,23.3,52.15s32.85,22.65,52.25,23.25q21.72.69,43.44,1.13,15.66,15.93,31.11,31.82c13.83,14.22,31.83,22.17,51,22.16s37.12-7.94,51-22.15q15.45-15.92,31.12-31.88,21.72-.45,43.43-1.13c39.87-1.35,74.19-35.62,75.55-75.4q.68-21.67,1.12-43.34,16-15.66,31.95-31.09c14.19-13.78,22.16-31.76,22.16-50.83S504.32,219,490.11,205.16ZM383.3,223.57c-43.18,44.87-87.05,90.74-130.19,136.24a37.56,37.56,0,0,1-27.27,11.78h-.17a38.25,38.25,0,0,1-27.3-11.72q-34.6-35.73-69.42-71.2a37.36,37.36,0,0,1,.76-53.43,38.37,38.37,0,0,1,54,.67q20.69,21.21,41.43,42.54c34.25-35.89,68.67-72,102.55-107.54,14.38-15.13,38.37-15.38,53.79-.78S397.79,208.52,383.3,223.57Z"></path>
-                      </svg>
-                    </span>
-                  </>
-                )}
-                {checkingAccount && (
-                  <div className="w-4 h-4 border-2 border-[#FF6B2B] border-t-transparent rounded-full animate-spin" />
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-3 flex-shrink-0">
-            <button
-              onClick={() => router.push("/templates")}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#888888" }}
-            >
-              Templates
-            </button>
-            <button
-              onClick={() => router.push("/create")}
-              className="px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90 liquid-btn"
-            >
-              New Invoice
+              {walletConnected 
+                ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
+                : 'Connect Wallet'}
             </button>
           </div>
         </div>
 
-        {/* Decrypting wallet callback — brief loading state */}
-        {connecting && (
-          <div className="flex items-center justify-center py-24">
-            <FlintLoader message="Connecting wallet..." />
-          </div>
-        )}
-
-        {/* Not connected */}
-        {!connecting && !connected && (
-          <div className="glass-light rounded-2xl p-10 sm:p-14 text-center">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
-              style={{ background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.08)" }}
+        {/* Tabs */}
+        <div className="max-w-4xl mx-auto px-4 pb-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: activeTab === 'pending' ? 'rgba(255,107,43,0.15)' : 'transparent',
+                color: activeTab === 'pending' ? '#FF6B2B' : '#666',
+              }}
             >
-              <img src="/flint-icon-32.png" width="32" height="32" alt="Flint" />
-            </div>
-            <h2 className="text-xl font-medium mb-2" style={{ color: "var(--chalk)" }}>
-              Connect your wallet
+              Pending Work
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: activeTab === 'completed' ? 'rgba(255,107,43,0.15)' : 'transparent',
+                color: activeTab === 'completed' ? '#FF6B2B' : '#666',
+              }}
+            >
+              Completed
+            </button>
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: activeTab === 'notifications' ? 'rgba(255,107,43,0.15)' : 'transparent',
+                color: activeTab === 'notifications' ? '#FF6B2B' : '#666',
+              }}
+            >
+              Notifications
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {!walletConnected ? (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">🔐</div>
+            <h2 className="text-xl font-bold mb-2" style={{ color: '#f7f7f5' }}>
+              Connect Your Wallet
             </h2>
-            <p className="text-sm mb-2" style={{ color: "#888888" }}>
-              See all your invoices, earnings, and payment history
+            <p className="mb-6" style={{ color: '#888' }}>
+              Connect to view your pending work and notifications
             </p>
-            <p className="text-xs mb-8" style={{ color: "#555555" }}>
-              Works with Phantom, Solflare, Backpack, and other Solana wallets
-            </p>
-
-            {mobileMode ? (
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={connectWithPhantom}
-                  disabled={connectingInit}
-                  className="px-8 py-3.5 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn disabled:opacity-50"
-                >
-                  {connectingInit ? "Connecting..." : "Connect with Phantom"}
-                </button>
-                <button
-                  onClick={connectWithSolflare}
-                  disabled={connectingInit}
-                  className="px-8 py-3.5 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{
-                    background: "rgba(255,184,0,0.1)",
-                    border: "1px solid rgba(255,184,0,0.25)",
-                    color: "#FFB800",
-                  }}
-                >
-                  {connectingInit ? "Connecting..." : "Connect with Solflare"}
-                </button>
-              </div>
-            ) : (
-              /* ── Desktop: injected wallet ── */
-              <button
-                onClick={connectWallet}
-                className="px-8 py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 liquid-btn"
-              >
-                Connect Wallet
-              </button>
-            )}
-
-            {error && (
-              <p className="text-sm mt-5 px-4 py-3 rounded-xl inline-block"
-                style={{ background: "#1a0a0a", color: "#ff6b6b", border: "1px solid #2a1010" }}>
-                {error}
-              </p>
-            )}
+            <button
+              onClick={connectWallet}
+              className="px-6 py-3 rounded-xl font-semibold"
+              style={{ background: '#FF6B2B', color: '#0a0a0a' }}
+            >
+              Connect Phantom
+            </button>
           </div>
-        )}
-
-        {/* Loading dashboard data */}
-        {connected && loading && (
-          <div className="flex items-center justify-center py-24">
-            <FlintLoader message="Loading your dashboard..." />
-          </div>
-        )}
-
-        {/* Stats + Invoices */}
-        {connected && !loading && stats && (
+        ) : (
           <>
-            {/* Quick nav */}
-            <div className="flex gap-2 sm:gap-3 mb-6 flex-wrap">
-              {[
-                { label: "Analytics", path: "/analytics", color: "#4ade80", bg: "rgba(74,222,128,0.08)", border: "rgba(74,222,128,0.2)" },
-                { label: "Templates", path: "/templates", color: "#888888", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)" },
-                { label: "Agent", path: "/agent", color: "#FF6B2B", bg: "rgba(255,107,43,0.08)", border: "rgba(255,107,43,0.3)" },
-                { label: "Spec", path: "/spec", color: "#8888ff", bg: "rgba(136,136,255,0.08)", border: "rgba(136,136,255,0.3)" },
-              ].map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => router.push(item.path)}
-                  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-80"
-                  style={{ background: item.bg, border: `1px solid ${item.border}`, color: item.color, minWidth: "70px" }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Stat cards + Usage Tracker */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              {[
-                { label: "Total Earned", value: `${stats.totalEarned}` },
-                { label: "Success Rate", value: stats.total === 0 ? "—" : `${stats.successRate}%` },
-                { label: "Total Invoices", value: `${stats.total}` },
-                { label: "Paid", value: `${stats.paid}`, color: "#4ade80" },
-                { label: "Pending", value: `${stats.pending}`, color: "#FFB800" },
-                { label: "Expired", value: `${stats.expired}`, color: "#ff6b6b" },
-              ].map((stat) => (
-                <div key={stat.label} className="glass-light rounded-xl p-4">
-                  <p className="text-xs mb-2" style={{ color: "#555555" }}>{stat.label}</p>
-                  <p className="text-xl sm:text-2xl font-medium" style={{ color: stat.color || "var(--spark)" }}>
-                    {stat.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Usage Tracker */}
-            <div className="mb-8">
-              <UsageTracker
-                tier="FREE"
-                volumeUsd={stats?.totalEarned || 0}
-                invoicesCreated={stats?.total || 0}
-                aiAnalysesCount={0}
-              />
-            </div>
-
-            {/* Invoice list */}
-            <div className="glass-medium rounded-2xl overflow-hidden">
-              <div
-                className="px-6 py-4 flex items-center justify-between"
-                style={{ background: "rgba(15,15,15,0.4)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                <p className="text-sm font-medium" style={{ color: "var(--chalk)" }}>
-                  Invoice History
-                </p>
-                <div className="flex items-center gap-3">
-                  <p className="text-xs" style={{ color: "#555555" }}>
-                    {invoices.length} total
-                  </p>
-                  <button
-                    onClick={() => setShowAllInvoices(!showAllInvoices)}
-                    className="flex items-center gap-1 text-xs px-3 py-1 rounded-full transition-all hover:opacity-80"
-                    style={{ background: "rgba(255,107,43,0.1)", color: "var(--spark)", border: "1px solid rgba(255,107,43,0.2)" }}
-                  >
-                    {showAllInvoices ? "Show less" : "View all"}
-                    <span style={{ fontSize: "10px" }}>{showAllInvoices ? "‹" : "›"}</span>
-                  </button>
-                </div>
+            {activeTab === 'pending' && <PendingWork walletAddress={walletAddress} />}
+            
+            {activeTab === 'completed' && (
+              <div className="text-center py-12" style={{ color: '#666' }}>
+                <div className="text-4xl mb-4">✅</div>
+                <p>Completed projects will appear here</p>
               </div>
+            )}
 
-              {invoices.length === 0 ? (
-                <div className="px-6 py-16 text-center" style={{ background: "#0f0f0f" }}>
-                  <p className="text-sm mb-5" style={{ color: "#888888" }}>
-                    No invoices yet
-                  </p>
-                  <button
-                    onClick={() => router.push("/create")}
-                    className="px-6 py-2.5 rounded-xl text-white text-sm transition-all hover:opacity-90 liquid-btn"
-                  >
-                    Create your first invoice
-                  </button>
-                </div>
-              ) : (
-                (showAllInvoices ? invoices : invoices.slice(0, 5)).map((invoice, index) => (
-                  <div
-                    key={invoice.id}
-                    className="px-6 py-4 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{
-                      background: index % 2 === 0 ? "#0f0f0f" : "#111111",
-                      borderBottom: index < Math.min(showAllInvoices ? invoices.length : 5, invoices.length) - 1 ? "1px solid #1a1a1a" : "none",
-                    }}
-                    onClick={() => {
-                      if (invoice.status === "paid") {
-                        router.push(`/verify/${invoice.txSignature}`);
-                      } else {
-                        router.push(`/pay/${invoice.id}`);
-                      }
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <p className="text-sm font-medium truncate" style={{ color: "var(--chalk)" }}>
-                          {invoice.title}
-                        </p>
-                        {invoice.handle && (
-                          <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                            style={{ background: "rgba(136,136,255,0.1)", color: "#8888ff" }}>
-                            @{invoice.handle}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs" style={{ color: "#555555" }}>
-                        {formatDate(invoice.createdAt)}
-                      </p>
-                    </div>
-                    <div className="text-right ml-4 flex-shrink-0">
-                      <p className="text-sm font-medium mb-1" style={{ color: "var(--chalk)" }}>
-                        {invoice.amount} {invoice.token}
-                      </p>
-                      <div className="flex items-center gap-2 justify-end">
-                        {invoice.status !== "paid" && Date.now() <= invoice.expiresAt && (
-                          <span className="text-xs" style={{ color: "#FFB800" }}>
-                            {getTimeLeft(invoice.expiresAt)}
-                          </span>
-                        )}
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full"
-                          style={{
-                            background: `${getStatusColor(invoice)}18`,
-                            color: getStatusColor(invoice),
-                          }}
-                        >
-                          {getStatusLabel(invoice)}
-                        </span>
-                        {invoice.txSignature && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`/verify/${invoice.txSignature}`, "_blank");
-                            }}
-                            className="text-xs px-2 py-0.5 rounded-full transition-all hover:opacity-80"
-                            style={{ background: "rgba(74,222,128,0.08)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}
-                          >
-                            Verify
-                          </button>
-                        )}
-                        {invoice.status === "pending" && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (!confirm("Cancel this invoice?")) return;
-                              await fetch(`/api/invoice/create?id=${invoice.id}`, { method: "DELETE" });
-                              fetchDashboard(wallet);
-                            }}
-                            className="text-xs px-2 py-0.5 rounded-full transition-all hover:opacity-80"
-                            style={{ background: "rgba(255,107,43,0.08)", color: "#ff6b6b", border: "1px solid rgba(255,80,80,0.2)" }}
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            {activeTab === 'notifications' && (
+              <div className="text-center py-12" style={{ color: '#666' }}>
+                <div className="text-4xl mb-4">🔔</div>
+                <p>Check the notification bell in the header!</p>
+                <p className="text-sm mt-2">Notifications appear there in real-time</p>
+              </div>
+            )}
           </>
         )}
-        
-        {/* Signup Modal for new users */}
-        {showSignup && wallet && (
-          <UsernameSignup
-            walletAddress={wallet}
-            onSuccess={(username) => {
-              setShowSignup(false);
-              setHasAccount(true);
-              checkUserAccount(wallet); // Refresh account data
-            }}
-            onCancel={() => setShowSignup(false)}
-          />
-        )}
       </div>
-    </main>
+    </div>
   );
 }
