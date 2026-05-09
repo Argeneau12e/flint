@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EscrowState } from '@/lib/escrow/types';
 import { canTransition, getDeadlineForState } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
+import { notifyWorkDelivered } from '@/lib/notifications';
 
 /**
  * POST /api/escrow/deliver
@@ -98,7 +99,17 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Escrow delivered:', escrowId, 'Review deadline:', new Date(reviewDeadline).toISOString());
 
-    // TODO: Send notification to buyer (email/push)
+    // Send notification to buyer
+    try {
+      await notifyWorkDelivered(
+        escrow.buyer_wallet || '',
+        undefined,
+        escrow.title,
+        escrowId
+      );
+    } catch (err) {
+      console.error('Notification error:', err);
+    }
 
     return NextResponse.json({
       success: true,

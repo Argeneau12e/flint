@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EscrowState } from '@/lib/escrow/types';
 import { canTransition } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
+import { notifyDisputeOpened } from '@/lib/notifications';
 
 /**
  * POST /api/escrow/dispute
@@ -103,8 +104,33 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Dispute opened:', escrowId, 'Initiator:', initiatorWallet, 'Reason:', reason);
 
-    // TODO: Send notification to both parties + Flint team
-    // TODO: Start AI analysis of dispute
+    // Send notifications to both parties
+    try {
+      const isBuyer = escrow.buyer_wallet === initiatorWallet;
+      
+      // Notify the other party
+      const otherPartyWallet = isBuyer ? escrow.creator_wallet : escrow.buyer_wallet;
+      const otherPartyIsSeller = isBuyer;
+      
+      await notifyDisputeOpened(
+        otherPartyWallet,
+        undefined,
+        escrow.title,
+        escrowId,
+        otherPartyIsSeller
+      );
+      
+      // Notify initiator
+      await notifyDisputeOpened(
+        initiatorWallet,
+        undefined,
+        escrow.title,
+        escrowId,
+        !isBuyer
+      );
+    } catch (err) {
+      console.error('Notification error:', err);
+    }
 
     return NextResponse.json({
       success: true,

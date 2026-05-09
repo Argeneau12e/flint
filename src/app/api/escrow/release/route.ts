@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EscrowState } from '@/lib/escrow/types';
 import { canTransition } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
+import { notifyPaymentReleased, notifyDisputeOpened } from '@/lib/notifications';
 
 /**
  * POST /api/escrow/release
@@ -126,7 +127,19 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Escrow released:', escrowId, isAutoApprove ? '(AUTO)' : '(BUYER APPROVED)');
 
-    // TODO: Send notification to both parties
+    // Send notification to seller about payment release
+    try {
+      await notifyPaymentReleased(
+        escrow.creator_wallet,
+        undefined,
+        escrow.title,
+        escrow.amount,
+        escrow.token_symbol,
+        escrowId
+      );
+    } catch (err) {
+      console.error('Notification error:', err);
+    }
 
     return NextResponse.json({
       success: true,

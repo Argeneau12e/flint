@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EscrowState } from '@/lib/escrow/types';
 import { canTransition } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
+import { notifyInvoiceFunded } from '@/lib/notifications';
 
 /**
  * POST /api/escrow/fund
@@ -106,6 +107,21 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('✅ Escrow funded:', escrowId, isDemoMode ? '(DEMO MODE)' : '(PRODUCTION)');
+
+    // Send notification to seller
+    try {
+      await notifyInvoiceFunded(
+        escrow.creator_wallet,
+        undefined, // userId would require account lookup
+        escrow.title,
+        escrow.amount,
+        escrow.token_symbol,
+        escrowId
+      );
+    } catch (err) {
+      console.error('Notification error:', err);
+      // Don't fail the transaction if notification fails
+    }
 
     return NextResponse.json({
       success: true,
