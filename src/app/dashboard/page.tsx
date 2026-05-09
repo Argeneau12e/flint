@@ -274,9 +274,20 @@ export default function DashboardPage() {
   };
 
   const getStatusLabel = (invoice: Invoice) => {
-    if (invoice.status === "paid") return "Paid";
+    if (invoice.status === "paid") return "Complete";
     if (Date.now() > invoice.expiresAt) return "Expired";
-    return "Pending";
+    return "Waiting for Payment";
+  };
+
+  // Link expiry countdown
+  const getTimeLeft = (expiresAt: number) => {
+    const left = expiresAt - Date.now();
+    if (left <= 0) return "Expired";
+    const days = Math.floor(left / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((left % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h left`;
+    return "Expiring soon";
   };
 
   return (
@@ -554,6 +565,11 @@ export default function DashboardPage() {
                         {invoice.amount} {invoice.token}
                       </p>
                       <div className="flex items-center gap-2 justify-end">
+                        {invoice.status !== "paid" && Date.now() <= invoice.expiresAt && (
+                          <span className="text-xs" style={{ color: "#FFB800" }}>
+                            {getTimeLeft(invoice.expiresAt)}
+                          </span>
+                        )}
                         <span
                           className="text-xs px-2 py-0.5 rounded-full"
                           style={{

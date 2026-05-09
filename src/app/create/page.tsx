@@ -18,19 +18,19 @@ function CreatePageInner() {
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState("USDC");
   const [memo, setMemo] = useState("");
-  const [expiryDays, setExpiryDays] = useState("7");
+  const [expiryDays, setExpiryDays] = useState("3");
+  const [deliveryDays, setDeliveryDays] = useState("7");
   const [recipientWallet, setRecipientWallet] = useState("");
   const [handle, setHandle] = useState("");
   const [condition, setCondition] = useState("");
-  const [splits, setSplits] = useState<Array<{wallet: string, percentage: number, label: string}>>([]);
-  const [showSplits, setShowSplits] = useState(false);
-  const [recurring, setRecurring] = useState(false);
-  const [recurringInterval, setRecurringInterval] = useState("monthly");
-  const [recurringCount, setRecurringCount] = useState("12");
-  const [webhookUrl, setWebhookUrl] = useState("");
+  const [aliceWhatsapp, setAliceWhatsapp] = useState("");
+  const [aiConditions, setAiConditions] = useState<string[]>([]);
+  const [suggestingConditions, setSuggestingConditions] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Removed: splits, showSplits, recurring, webhookUrl (not part of REAL Flint Flow)
   
   // Escrow integration
   const [escrowEnabled] = useState(true); // Escrow is DEFAULT (no toggle)
@@ -51,14 +51,38 @@ function CreatePageInner() {
     if (e) setExpiryDays(e);
   }, [searchParams]);
 
+  // AI Condition Suggester
+  const suggestConditions = async () => {
+    if (!title) return;
+    setSuggestingConditions(true);
+    try {
+      const res = await fetch('/api/escrow/suggest-conditions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, memo }),
+      });
+      const data = await res.json();
+      if (data.conditions) {
+        setAiConditions(data.conditions);
+        // Auto-fill condition with suggestions
+        setCondition(data.conditions.join('\n'));
+      }
+    } catch (e) {
+      console.error('AI suggestion failed:', e);
+    } finally {
+      setSuggestingConditions(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Please add a title."); return; }
     if (!amount || Number(amount) <= 0) { setError("Please enter a valid amount."); return; }
     if (!recipientWallet.trim()) { setError("Please enter your wallet address."); return; }
     if (recipientWallet.length < 32) { setError("Wallet address looks too short."); return; }
+    if (!aliceWhatsapp.trim()) { setError("Please enter Alice's WhatsApp for notifications."); return; }
 
     setLoading(true);
-    console.log('Creating invoice:', { title, amount: Number(amount), token, creator: recipientWallet });
+    console.log('Creating invoice:', { title, amount: Number(amount), token, creator: recipientWallet, aliceWhatsapp });
     try {
       // Use escrow create API (includes fee calculation)
       const res = await fetch("/api/escrow/create", {
@@ -70,17 +94,13 @@ function CreatePageInner() {
           token,
           description: memo,
           creator: recipientWallet, // Seller wallet
-          // recipient omitted - buyer unknown at creation time
+          aliceWhatsapp, // Alice's contact for notifications
+          deliveryDays: Number(deliveryDays),
+          linkExpiryDays: Number(expiryDays),
           feeTier,
           escrowEnabled,
-          // Keep existing advanced options
           handle,
           condition,
-          splits: splits.length > 0 ? splits : undefined,
-          recurring,
-          recurringInterval: recurring ? recurringInterval : undefined,
-          recurringCount: recurring ? Number(recurringCount) : undefined,
-          webhookUrl: webhookUrl || undefined,
         }),
       });
       const data = await res.json();
@@ -130,23 +150,26 @@ function CreatePageInner() {
 
       <div className="max-w-lg mx-auto rounded-2xl p-6 sm:p-8 flex flex-col gap-6 glass-medium">
 
-        {/* Escrow Enabled Banner */}
-        <div 
-          className="p-4 rounded-xl flex items-start gap-3"
-          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}
-        >
-          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(74,222,128,0.2)' }}>
-            <svg className="w-3 h-3 text-[#4ade80]" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
+        {/* Fee Disclosure Banner - CRITICAL for REAL flow */}
+        {amount && Number(amount) > 0 && (
+          <div 
+            className="p-4 rounded-xl flex items-start gap-3"
+            style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.2)' }}
+          >
+            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,184,0,0.2)' }}>
+              <svg className="w-3 h-3 text-[#FFB800]" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium" style={{ color: '#FFB800' }}>💡 You (Bob) pay the escrow fee</p>
+              <p className="text-xs mt-1" style={{ color: '#888' }}>
+                Alice pays exactly {amount} {token}. Your fee is deducted from your payout.
+                Alice never sees this fee — to her, it's just paying you.
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium" style={{ color: '#4ade80' }}>Escrow Protection Enabled</p>
-            <p className="text-xs mt-1" style={{ color: '#888' }}>
-              Funds are held securely until work is delivered. AI-powered dispute resolution included.
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Title */}
         <div>
@@ -246,16 +269,56 @@ function CreatePageInner() {
           />
         </div>
 
-        {/* Expiry */}
+        {/* Alice's WhatsApp */}
         <div>
-          <label style={labelStyle}>Link Expires In</label>
+          <label style={labelStyle}>Alice's WhatsApp <span style={{ color: "#ff6b6b" }}>*</span></label>
+          <input
+            value={aliceWhatsapp}
+            onChange={(e) => { setAliceWhatsapp(e.target.value); setError(""); }}
+            placeholder="+1-234-567-8900 (with country code)"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
+          />
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
+            Alice receives notifications here. She never knows this is escrow.
+          </p>
+        </div>
+
+        {/* Delivery Time */}
+        <div>
+          <label style={labelStyle}>Bob Has To Deliver</label>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { val: "3", label: "3 days" },
+              { val: "7", label: "7 days" },
+              { val: "14", label: "14 days" },
+              { val: "30", label: "30 days" },
+            ].map((opt) => (
+              <button
+                key={opt.val}
+                onClick={() => setDeliveryDays(opt.val)}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition-smooth"
+                style={{
+                  background: deliveryDays === opt.val ? "rgba(255,107,43,0.15)" : "rgba(15,15,15,0.5)",
+                  border: deliveryDays === opt.val ? "1px solid rgba(255,107,43,0.4)" : "1px solid rgba(255,255,255,0.07)",
+                  color: deliveryDays === opt.val ? "var(--spark)" : "#666666",
+                  minHeight: "44px",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Link Expiry */}
+        <div>
+          <label style={labelStyle}>Payment Link Expires In</label>
           <div className="flex gap-2 flex-wrap">
             {[
               { val: "1", label: "1 day" },
               { val: "3", label: "3 days" },
               { val: "7", label: "7 days" },
               { val: "14", label: "14 days" },
-              { val: "30", label: "30 days" },
             ].map((opt) => (
               <button
                 key={opt.val}
@@ -272,6 +335,9 @@ function CreatePageInner() {
               </button>
             ))}
           </div>
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
+            Alice must fund by this date or the link expires
+          </p>
         </div>
 
         {/* Advanced toggle */}
@@ -312,172 +378,67 @@ function CreatePageInner() {
               </p>
             </div>
 
-            {/* Condition */}
+            {/* Condition with AI Suggester */}
             <div>
-              <label style={labelStyle}>
-                Payment Condition <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional)</span>
-              </label>
-              <input
+              <div className="flex items-center justify-between mb-2">
+                <label style={{ ...labelStyle, marginBottom: 0 }}>
+                  Service Conditions <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(what you'll deliver)</span>
+                </label>
+                <button
+                  onClick={suggestConditions}
+                  disabled={suggestingConditions || !title}
+                  className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80 flex items-center gap-1"
+                  style={{
+                    background: suggestingConditions ? "rgba(255,107,43,0.2)" : "rgba(255,107,43,0.1)",
+                    border: "1px solid rgba(255,107,43,0.3)",
+                    color: "var(--spark)",
+                    opacity: suggestingConditions || !title ? 0.5 : 1,
+                  }}
+                >
+                  {suggestingConditions ? (
+                    <>
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Thinking...
+                    </>
+                  ) : (
+                    <>
+                      ✨ AI Suggest
+                    </>
+                  )}
+                </button>
+              </div>
+              <textarea
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
-                placeholder="e.g. Deliver mockups before payment releases"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
+                placeholder="Describe what you'll deliver (or click AI Suggest above)"
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input resize-none"
               />
+              {aiConditions.length > 0 && (
+                <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(255,107,43,0.08)', border: '1px solid rgba(255,107,43,0.2)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--spark)', marginBottom: '6px' }}>AI Suggestions (applied above):</p>
+                  <ul className="text-xs space-y-1" style={{ color: '#888' }}>
+                    {aiConditions.map((c, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span style={{ color: 'var(--spark)' }}>•</span>
+                        <span>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-                Condition the payer must meet before payment is valid
+                These conditions will be shown to Alice. Be clear about deliverables.
               </p>
             </div>
 
-            {/* Splits */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Split Payment</label>
-                <button
-                  onClick={() => {
-                    setShowSplits(!showSplits);
-                    if (!showSplits && splits.length === 0) {
-                      setSplits([{ wallet: "", percentage: 50, label: "" }]);
-                    }
-                  }}
-                  className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
-                  style={{
-                    background: showSplits ? "#1a1a0a" : "transparent",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: showSplits ? "var(--spark)" : "#555555",
-                  }}
-                >
-                  {showSplits ? "Remove splits" : "Add splits"}
-                </button>
-              </div>
-              {showSplits && (
-                <div className="flex flex-col gap-3">
-                  {splits.map((split, index) => (
-                    <div key={index} className="flex gap-2 items-center">
-                      <input
-                        value={split.label}
-                        onChange={(e) => {
-                          const updated = [...splits];
-                          updated[index].label = e.target.value;
-                          setSplits(updated);
-                        }}
-                        placeholder="Label"
-                        className="w-24 px-3 py-2 rounded-xl text-xs outline-none"
-                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--chalk)" }}
-                      />
-                      <input
-                        value={split.wallet}
-                        onChange={(e) => {
-                          const updated = [...splits];
-                          updated[index].wallet = e.target.value;
-                          setSplits(updated);
-                        }}
-                        placeholder="Wallet address"
-                        className="flex-1 px-3 py-2 rounded-xl text-xs outline-none font-mono"
-                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--chalk)" }}
-                      />
-                      <input
-                        value={split.percentage}
-                        onChange={(e) => {
-                          const updated = [...splits];
-                          updated[index].percentage = Number(e.target.value);
-                          setSplits(updated);
-                        }}
-                        type="number"
-                        min="1"
-                        max="100"
-                        className="w-16 px-3 py-2 rounded-xl text-xs outline-none"
-                        style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "var(--spark)" }}
-                      />
-                      <span className="text-xs" style={{ color: "#555555" }}>%</span>
-                      <button
-                        onClick={() => setSplits(splits.filter((_, i) => i !== index))}
-                        className="text-xs px-2 py-2 rounded-lg"
-                        style={{ background: "#1a0a0a", color: "#ff6b6b", minHeight: "36px", minWidth: "36px" }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setSplits([...splits, { wallet: "", percentage: 0, label: "" }])}
-                    className="text-xs py-2 rounded-xl transition-all hover:opacity-80"
-                    style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", color: "#888888" }}
-                  >
-                    + Add recipient
-                  </button>
-                  <p className="text-xs" style={{ color: "#444444" }}>
-                    Total: {splits.reduce((s, sp) => s + sp.percentage, 0)}% (must equal 100%)
-                  </p>
-                </div>
-              )}
-            </div>
 
-            {/* Recurring */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Recurring Payment</label>
-                <button
-                  onClick={() => setRecurring(!recurring)}
-                  className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80"
-                  style={{
-                    background: recurring ? "#1a1a0a" : "transparent",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: recurring ? "var(--spark)" : "#555555",
-                  }}
-                >
-                  {recurring ? "Disable" : "Enable"}
-                </button>
-              </div>
-              {recurring && (
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label style={labelStyle}>Interval</label>
-                    <select
-                      value={recurringInterval}
-                      onChange={(e) => setRecurringInterval(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                  <div style={{ width: "120px" }}>
-                    <label style={labelStyle}>Cycles</label>
-                    <input
-                      value={recurringCount}
-                      onChange={(e) => setRecurringCount(e.target.value)}
-                      type="number"
-                      min="1"
-                      max="120"
-                      placeholder="12"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
-                    />
-                  </div>
-                </div>
-              )}
-              {recurring && (
-                <p className="text-xs mt-2" style={{ color: "#444444" }}>
-                  Payer will be charged {recurringCount}× {recurringInterval}
-                </p>
-              )}
-            </div>
 
-            {/* Webhook */}
-            <div>
-              <label style={labelStyle}>
-                Webhook URL <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional — for developers)</span>
-              </label>
-              <input
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                placeholder="https://yourapp.com/webhooks/flint"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
-              />
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-                We POST to this URL when your invoice is paid
-              </p>
-            </div>
+
+
           </>
         )}
 

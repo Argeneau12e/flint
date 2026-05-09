@@ -186,15 +186,15 @@ export default function PayPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      draft: "Draft",
-      pending_acceptance: "Pending Acceptance",
-      accepted_waiting_funding: "Waiting Funding",
-      funded_active: "Active",
-      delivered_review: "In Review",
+      draft: "Waiting for You",
+      pending_acceptance: "Waiting for You",
+      accepted_waiting_funding: "Ready to Pay",
+      funded_active: "Bob is Working",
+      delivered_review: "Ready to Review",
       released_complete: "Complete",
-      disputed: "Disputed",
-      auto_approved: "Auto-Approved",
-      auto_cancelled: "Cancelled",
+      disputed: "Under Review",
+      auto_approved: "Complete",
+      auto_cancelled: "Expired",
       refunded: "Refunded",
     };
     return labels[status] || status;
@@ -273,16 +273,11 @@ export default function PayPage() {
             {invoice.title}
           </h1>
 
-          {/* Amount */}
+          {/* Amount - NO FEE MENTIONED (Alice doesn't see fees) */}
           <div className="mb-6">
             <div className="text-4xl font-medium mb-1" style={{ color: "#FF6B2B" }}>
-              {formatAmount(invoice.totalAmount, invoice.token)}
+              {formatAmount(invoice.amount, invoice.token)}
             </div>
-            {invoice.feeAmount > 0 && (
-              <div className="text-sm" style={{ color: "#888" }}>
-                Includes {formatAmount(invoice.feeAmount, invoice.token)} Flint fee
-              </div>
-            )}
           </div>
 
           {/* Details */}
@@ -314,7 +309,7 @@ export default function PayPage() {
             </div>
           </div>
 
-          {/* Escrow Info */}
+          {/* Payment Protection Info */}
           <div
             className="p-4 rounded-xl mb-6"
             style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}
@@ -326,9 +321,9 @@ export default function PayPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium" style={{ color: "#4ade80" }}>Escrow Protected</p>
+                <p className="text-sm font-medium" style={{ color: "#4ade80" }}>Payment Protected</p>
                 <p className="text-xs mt-1" style={{ color: "#888" }}>
-                  Your funds are held securely until you approve the work.
+                  Bob receives payment only after you approve the work.
                 </p>
               </div>
             </div>
@@ -349,7 +344,7 @@ export default function PayPage() {
               className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 disabled:opacity-50 liquid-btn"
               style={{ fontSize: "15px", minHeight: "54px" }}
             >
-              {paying ? "Processing..." : walletConnected ? "Accept & Fund Escrow" : "Connect Wallet to Accept"}
+              {paying ? "Processing..." : walletConnected ? "Continue to Payment" : "Connect Wallet to Pay"}
             </button>
           )}
 
@@ -365,15 +360,15 @@ export default function PayPage() {
               className="w-full py-4 rounded-xl font-medium text-white transition-all active:scale-95 liquid-btn"
               style={{ fontSize: "15px", minHeight: "54px" }}
             >
-              Fund Escrow
+              Pay Bob
             </button>
           )}
 
           {(invoice.status === "funded_active" || hasFunded) && (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
-                <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Escrow Funded - Waiting Delivery</p>
-                <p className="text-xs mt-1" style={{ color: "#888" }}>The seller has been notified to deliver the work.</p>
+                <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Paid - Waiting for Bob to Deliver</p>
+                <p className="text-xs mt-1" style={{ color: "#888" }}>Bob has been notified and will deliver soon.</p>
               </div>
               {/* Seller: Mark as Delivered button */}
               <button
@@ -408,79 +403,23 @@ export default function PayPage() {
           {(invoice.status === "delivered_review" || sessionStorage.getItem(`delivered_${id}`)) && (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl" style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
-                <p className="text-sm font-medium" style={{ color: "#8b5cf6" }}>Work Delivered - Review Period</p>
-                <p className="text-xs mt-1" style={{ color: "#888" }}>Review the work and approve or dispute.</p>
+                <p className="text-sm font-medium" style={{ color: "#8b5cf6" }}>Bob Delivered the Work</p>
+                <p className="text-xs mt-1" style={{ color: "#888" }}>Review below and confirm you're satisfied.</p>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={async () => {
-                    // Connect wallet first if not connected
-                    if (!walletConnected) {
-                      await connectWallet();
-                      if (!walletConnected) return; // User cancelled or failed
-                    }
-                    
-                    try {
-                      console.log('Release click:', { escrowId: id, userWallet });
-                      const res = await fetch('/api/escrow/release', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          escrowId: id,
-                          buyerWallet: userWallet,
-                        }),
-                      });
-                      const data = await res.json();
-                      console.log('Release response:', res.status, data);
-                      if (res.ok) {
-                        alert('Payment released to seller!');
-                        sessionStorage.setItem(`released_${id}`, 'true');
-                        window.location.reload();
-                      } else {
-                        // Show detailed error including current state
-                        const errorMsg = data.currentStatus 
-                          ? `Error: ${data.error} (Current state: ${data.currentStatus})`
-                          : `Error: ${data.error}`;
-                        alert(errorMsg);
-                      }
-                    } catch (err) {
-                      console.error('Release error:', err);
-                      alert('Error: ' + (err as any).message);
-                    }
-                  }}
+                  onClick={() => router.push(`/review/${id}`)}
                   className="flex-1 py-3 rounded-xl font-medium transition-all"
                   style={{ background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80" }}
                 >
-                  Approve & Release
+                  Review & Approve
                 </button>
                 <button
-                  onClick={async () => {
-                    const reason = prompt('Describe the issue:');
-                    if (reason) {
-                      try {
-                        const res = await fetch('/api/escrow/dispute', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            escrowId: id,
-                            disputantWallet: userWallet,
-                            reason,
-                          }),
-                        });
-                        if (res.ok) {
-                          alert('Dispute opened. AI review will begin.');
-                          sessionStorage.setItem(`disputed_${id}`, 'true');
-                          window.location.reload();
-                        }
-                      } catch (err) {
-                        console.error('Dispute error:', err);
-                      }
-                    }
-                  }}
+                  onClick={() => router.push(`/review/${id}`)}
                   className="flex-1 py-3 rounded-xl font-medium transition-all"
                   style={{ background: "rgba(255,68,68,0.15)", border: "1px solid rgba(255,68,68,0.3)", color: "#ff4444" }}
                 >
-                  Dispute
+                  Report Issue
                 </button>
               </div>
             </div>
