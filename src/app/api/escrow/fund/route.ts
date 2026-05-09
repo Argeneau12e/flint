@@ -3,6 +3,7 @@ import { EscrowState } from '@/lib/escrow/types';
 import { canTransition } from '@/lib/escrow/state-machine';
 import { createClient } from '@supabase/supabase-js';
 import { notifyInvoiceFunded } from '@/lib/notifications';
+import { Connection } from '@solana/web3.js';
 
 /**
  * POST /api/escrow/fund
