@@ -85,12 +85,11 @@ export async function claimEscroTask(escrowId: string, sellerWallet: PublicKey) 
   try {
     console.log('Claiming escrow task:', escrowId);
     
-    const result = await escroClient.claimTask(escrowId);
+    await escroClient.claimTask(escrowId);
     
     console.log('✅ Task claimed:', escrowId);
     return {
       success: true,
-      state: result.state,
     };
   } catch (error: any) {
     console.error('❌ Claim error:', error.message);
@@ -113,7 +112,7 @@ export async function submitEscroDeliverable(
   try {
     console.log('Submitting deliverable:', escrowId);
     
-    const result = await escroClient.submitDeliverable(escrowId, {
+    await escroClient.submitDeliverable(escrowId, {
       contentHash: deliverableHash,
       proofUri,
     });
@@ -121,7 +120,6 @@ export async function submitEscroDeliverable(
     console.log('✅ Deliverable submitted:', escrowId);
     return {
       success: true,
-      state: result.state,
     };
   } catch (error: any) {
     console.error('❌ Submit error:', error.message);
@@ -139,12 +137,11 @@ export async function releaseEscroPayment(escrowId: string, buyerWallet: PublicK
   try {
     console.log('Releasing payment:', escrowId);
     
-    const result = await escroClient.releasePayment(escrowId);
+    await escroClient.releasePayment(escrowId);
     
     console.log('✅ Payment released:', escrowId);
     return {
       success: true,
-      state: result.state,
     };
   } catch (error: any) {
     console.error('❌ Release error:', error.message);
@@ -193,12 +190,11 @@ export async function cancelEscroEscrow(escrowId: string, buyerWallet: PublicKey
   try {
     console.log('Cancelling escrow:', escrowId);
     
-    const result = await escroClient.cancelEscrow(escrowId);
+    await escroClient.cancelEscrow(escrowId);
     
     console.log('✅ Escrow cancelled:', escrowId);
     return {
       success: true,
-      state: result.state,
     };
   } catch (error: any) {
     console.error('❌ Cancel error:', error.message);
@@ -220,12 +216,11 @@ export async function raiseEscroDispute(
   try {
     console.log('Raising dispute:', escrowId, reason);
     
-    const result = await escroClient.dispute(escrowId, { reason });
+    await escroClient.dispute(escrowId, { reason });
     
     console.log('✅ Dispute raised:', escrowId);
     return {
       success: true,
-      state: result.state,
     };
   } catch (error: any) {
     console.error('❌ Dispute error:', error.message);
