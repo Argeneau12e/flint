@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.DELIVERED_REVIEW, 'seller')) {
+    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.DELIVERED_REVIEW, 'creator')) {
       return NextResponse.json(
         { error: 'Invalid state transition' },
         { status: 400 }
