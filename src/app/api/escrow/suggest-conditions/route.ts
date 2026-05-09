@@ -85,13 +85,21 @@ Your response:`;
 
       const result = await completion({
         modelId: modelId,
-        prompt,
-        maxTokens: 200,
-        temperature: 0.7,
+        history: [
+          {
+            role: "system",
+            content: "You are Flint AI, helping sellers create clear service conditions for payment protection. Suggest 3-5 specific, measurable conditions.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        stream: false,
       });
 
       // Parse the response into individual conditions
-      const responseText = result.completion || "";
+      const responseText = (result as any).text || "";
       const conditions = responseText
         .split('\n')
         .map(line => line.replace(/^[-•*]\s*/, '').trim())
