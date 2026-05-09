@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
           title,
           description,
           condition,
+          acceptance_deadline: linkExpiresAt, // Same as link_expires_at
           link_expires_at: new Date(linkExpiresAt).toISOString(),
           delivery_deadline: deliveryDeadline,
           review_deadline: reviewDeadline,
