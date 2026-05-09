@@ -105,14 +105,39 @@ export async function POST(req: NextRequest) {
       console.error('Notification error:', err);
     }
 
+    // In production, this would trigger an on-chain transfer from Flint's escrow wallet to Bob
+    // For now, we're using backend-tracked escrow (Flint treasury holds funds)
+    // The actual transfer would require Flint's private key to sign
+    
+    // TODO: Implement on-chain release when Flint treasury wallet is set up
+    // For MVP: Backend tracks release, Flint manually transfers or uses automated treasury system
+
+    console.log('✅ Payment released:', escrowId);
+    console.log('📝 Treasury transfer needed:', escrow.amount, escrow.token_symbol, 'to', escrow.creator_wallet);
+
+    // Send notification to seller
+    try {
+      await notifyPaymentReleased(
+        escrow.creator_wallet,
+        undefined,
+        escrow.title,
+        escrow.amount,
+        escrow.token_symbol,
+        escrowId
+      );
+    } catch (err) {
+      console.error('Notification error:', err);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Payment released successfully! Seller has been notified.',
+      message: 'Payment released successfully! Seller has been notified. Funds will be transferred from escrow.',
       escrow: {
         id: escrowId,
         state: EscrowState.RELEASED_COMPLETE,
         released_at: releasedAt,
       },
+      note: 'For production: On-chain transfer from Flint treasury to seller required',
     });
   } catch (error: any) {
     console.error('Release error:', error.message);

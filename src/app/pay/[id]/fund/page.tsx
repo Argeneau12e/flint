@@ -125,8 +125,8 @@ export default function FundPage() {
         return;
       }
       
-      // Get escrow ATA (seller's wallet, but backend tracks as escrow)
-      const escrowAta = await getEscrowAta(mint, id, seller);
+      // Get Flint's escrow ATA (neutral treasury wallet)
+      const escrowAta = await getEscrowAta(mint);
       
       // Convert amount to smallest units (6 decimals for USDC)
       const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);
@@ -134,7 +134,7 @@ export default function FundPage() {
       console.log('Creating escrow transaction:', {
         tokenSymbol,
         mint: mint.toString(),
-        seller: seller.toString(),
+        escrowWallet: '2c3TBCrtoaRz81JcqVLKQ3X9xA81YwJeziqQeUiTESF',
         buyer: buyer.toString(),
         amount: amountInSmallestUnits,
         escrowId: id,

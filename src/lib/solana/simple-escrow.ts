@@ -149,18 +149,19 @@ export async function createRefundInstruction(
 }
 
 /**
- * Get escrow ATA address - uses seller's wallet as temporary holder
- * Backend tracks escrow state and requires buyer approval for release
- * This is a hybrid approach: on-chain transfer + off-chain escrow logic
+ * Get Flint's escrow wallet ATA
+ * All escrow funds are held in Flint's treasury wallet (neutral third party)
+ * Neither buyer nor seller controls this wallet
  */
 export async function getEscrowAta(
-  mint: PublicKey,
-  escrowId: string,
-  seller: PublicKey
+  mint: PublicKey
 ): Promise<PublicKey> {
-  // Use seller's ATA as the holding account
-  // Backend tracks this as "in escrow" until buyer releases
-  return getAssociatedTokenAddress(mint, seller, true);
+  // Flint's treasury/escrow wallet (holds all escrow funds)
+  // This wallet is controlled by Flint, not by individual sellers
+  const FLINT_TREASURY = new PublicKey('2c3TBCrtoaRz81JcqVLKQ3X9xA81YwJeziqQeUiTESF');
+  
+  // Get ATA for this mint owned by Flint's treasury
+  return getAssociatedTokenAddress(mint, FLINT_TREASURY, true);
 }
 
 /**
