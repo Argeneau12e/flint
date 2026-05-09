@@ -4,24 +4,23 @@
  * Docs: https://escro.ai/docs
  */
 
-import { Escro } from '@escro/sdk';
-import { PublicKey, clusterApiUrl } from '@solana/web3.js';
+import { PublicKey, clusterApiUrl, Connection } from '@solana/web3.js';
 
 // Use devnet for testing
 const ESCRO_API_URL = 'https://api-devnet.escro.ai';
 const RPC_URL = clusterApiUrl('devnet');
 
-// Initialize escro client
-// Note: wallet is passed per-request when signing transactions
-export const escroClient = new Escro({
-  apiUrl: ESCRO_API_URL,
-  rpcUrl: RPC_URL,
-  wallet: {
-    publicKey: PublicKey.default,
-    signTransaction: async (tx: any) => tx,
-    signAllTransactions: async (txs: any[]) => txs,
-  } as any,
-});
+/**
+ * Get escro client instance
+ * Created on-demand to avoid class constructor issues in client components
+ */
+function getEscroClient() {
+  const { Escro } = require('@escro/sdk');
+  return new Escro({
+    apiUrl: ESCRO_API_URL,
+    rpcUrl: RPC_URL,
+  });
+}
 
 /**
  * Create an escrow for Flint invoice
@@ -48,7 +47,8 @@ export async function createEscroEscrow(
     });
 
     // Create escrow via escro SDK
-    const escrow = await escroClient.createEscrow({
+    const client = getEscroClient();
+    const escrow = await client.createEscrow({
       amountUsdc,
       assignedWorker: sellerWallet.toString(),
       taskSpec: {
@@ -85,7 +85,8 @@ export async function claimEscroTask(escrowId: string, sellerWallet: PublicKey) 
   try {
     console.log('Claiming escrow task:', escrowId);
     
-    await escroClient.claimTask(escrowId);
+    const client = getEscroClient();
+    await client.claimTask(escrowId);
     
     console.log('✅ Task claimed:', escrowId);
     return {
@@ -112,7 +113,8 @@ export async function submitEscroDeliverable(
   try {
     console.log('Submitting deliverable:', escrowId);
     
-    await escroClient.submitDeliverable(escrowId, {
+    const client = getEscroClient();
+    await client.submitDeliverable(escrowId, {
       contentHash: deliverableHash,
       proofUri,
     });
@@ -137,7 +139,8 @@ export async function releaseEscroPayment(escrowId: string, buyerWallet: PublicK
   try {
     console.log('Releasing payment:', escrowId);
     
-    await escroClient.releasePayment(escrowId);
+    const client = getEscroClient();
+    await client.releasePayment(escrowId);
     
     console.log('✅ Payment released:', escrowId);
     return {
@@ -157,7 +160,8 @@ export async function releaseEscroPayment(escrowId: string, buyerWallet: PublicK
  */
 export async function getEscrowStatus(escrowId: string) {
   try {
-    const escrow = await escroClient.getEscrow(escrowId);
+    const client = getEscroClient();
+    const escrow = await client.getEscrow(escrowId);
     
     return {
       success: true,
@@ -190,7 +194,8 @@ export async function cancelEscroEscrow(escrowId: string, buyerWallet: PublicKey
   try {
     console.log('Cancelling escrow:', escrowId);
     
-    await escroClient.cancelEscrow(escrowId);
+    const client = getEscroClient();
+    await client.cancelEscrow(escrowId);
     
     console.log('✅ Escrow cancelled:', escrowId);
     return {
@@ -218,6 +223,7 @@ export async function raiseEscroDispute(
     console.log('Raising dispute:', escrowId, reason);
     
     // Dispute via REST API (SDK method name may vary)
+    const client = getEscroClient();
     const response = await fetch(`${ESCRO_API_URL}/v1/escrows/${escrowId}/dispute`, {
       method: 'POST',
       headers: {
