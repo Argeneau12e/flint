@@ -55,7 +55,7 @@ export default function PendingWork({ walletAddress }: PendingWorkProps) {
     switch (state) {
       case 'funded_active':
         return { bg: 'rgba(255, 107, 43, 0.15)', text: '#FF6B2B', border: 'rgba(255, 107, 43, 0.3)' };
-      case 'work_delivered':
+      case 'delivered_review':
         return { bg: 'rgba(107, 139, 255, 0.15)', text: '#6B8BFF', border: 'rgba(107, 139, 255, 0.3)' };
       default:
         return { bg: 'rgba(136, 136, 136, 0.15)', text: '#888', border: 'rgba(136, 136, 136, 0.3)' };
@@ -127,7 +127,7 @@ export default function PendingWork({ walletAddress }: PendingWorkProps) {
                   color: '#0a0a0a',
                 }}
               >
-                {escrow.state === 'funded_active' ? 'Start Work' : 'Submit Delivery'}
+                {escrow.state === 'funded_active' ? 'Start Work' : 'Review Delivery'}
               </button>
             </div>
           </div>

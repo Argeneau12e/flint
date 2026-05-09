@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check state transition (FUNDED_ACTIVE → WORK_DELIVERED)
+    // Check state transition (FUNDED_ACTIVE → DELIVERED_REVIEW)
     if (escrow.state !== EscrowState.FUNDED_ACTIVE) {
       return NextResponse.json(
         { error: `Invalid state for delivery: ${escrow.state}. Expected: funded_active` },
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.WORK_DELIVERED, 'seller')) {
+    if (!canTransition(EscrowState.FUNDED_ACTIVE, EscrowState.DELIVERED_REVIEW, 'seller')) {
       return NextResponse.json(
         { error: 'Invalid state transition' },
         { status: 400 }
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await supabase
       .from('escrows')
       .update({
-        state: EscrowState.WORK_DELIVERED,
+        state: EscrowState.DELIVERED_REVIEW,
         delivered_at: deliveredAt,
         delivery_notes: deliveryNotes || null,
         delivery_url: deliveryUrl || null,
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       message: 'Delivery submitted successfully',
       escrow: {
         id: escrowId,
-        state: EscrowState.WORK_DELIVERED,
+        state: EscrowState.DELIVERED_REVIEW,
         delivered_at: deliveredAt,
       },
     });

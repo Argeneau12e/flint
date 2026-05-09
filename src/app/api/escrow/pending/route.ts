@@ -29,12 +29,12 @@ export async function GET(req: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch escrows where user is seller and state is funded_active or work_delivered
+    // Fetch escrows where user is seller and state is funded_active or delivered_review
     const { data: escrows, error } = await supabase
       .from('escrows')
       .select('*')
       .eq('creator_wallet', wallet)
-      .in('state', ['funded_active', 'work_delivered'])
+      .in('state', ['funded_active', 'delivered_review'])
       .order('created_at', { ascending: false });
 
     if (error) {
