@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
           description,
           condition,
           acceptance_deadline: linkExpiresAt, // Same as link_expires_at
+          funding_deadline: linkExpiresAt, // Same as link_expires_at (client must fund by this date)
           link_expires_at: new Date(linkExpiresAt).toISOString(),
           delivery_deadline: deliveryDeadline,
           review_deadline: reviewDeadline,
