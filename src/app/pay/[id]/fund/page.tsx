@@ -101,90 +101,45 @@ export default function FundPage() {
         return;
       }
 
-      // Use devnet for testing
-      const connection = new (await import('@solana/web3.js')).Connection(
-        'https://api.devnet.solana.com'
-      );
-
-      // Step 3: Create and send transaction
-      const { createEscrowPaymentInstruction, getEscrowAta } = await import('@/lib/solana/simple-escrow');
+      // Use escro protocol for TRUE escrow (PDA-controlled, no human access)
+      const { createEscroEscrow } = await import('@/lib/escrow/escro-client');
       
-      // Map escrow fields (database uses different names than expected)
-      const tokenSymbol = escrow.token || 'USDC';
-      const sellerWallet = escrow.creator || escrow.creator_wallet;
+      const sellerWallet = new PublicKey(escrow.creator || escrow.creator_wallet);
+      const buyerWalletPubkey = new PublicKey(userWallet);
       
-      // Use USDC devnet mint address (different from mainnet!)
-      const USDC_DEVNET_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-      const mint = new PublicKey(USDC_DEVNET_MINT);
-      const seller = new PublicKey(sellerWallet);
-      const buyer = new PublicKey(userWallet);
-      
-      if (!sellerWallet) {
-        setError('Invalid escrow: missing creator');
-        setFunding(false);
-        return;
-      }
-      
-      // Get Flint's escrow ATA (neutral treasury wallet)
-      const escrowAta = await getEscrowAta(mint);
-      
-      // Convert amount to smallest units (6 decimals for USDC)
-      const amountInSmallestUnits = Math.floor(escrow.totalAmount * 1000000);
-      
-      console.log('Creating escrow transaction:', {
-        tokenSymbol,
-        mint: mint.toString(),
-        escrowWallet: '2c3TBCrtoaRz81JcqVLKQ3X9xA81YwJeziqQeUiTESF',
-        buyer: buyer.toString(),
-        amount: amountInSmallestUnits,
+      console.log('Creating escro escrow:', {
         escrowId: id,
+        buyer: userWallet,
+        seller: sellerWallet.toString(),
+        amount: escrow.totalAmount,
       });
       
-      const transaction = await createEscrowPaymentInstruction(
-        connection,
-        {
-          amount: amountInSmallestUnits,
-          mint,
-          seller,
-          buyer,
-          escrowId: id,
-        },
-        escrowAta
+      // Create escro escrow (this handles on-chain PDA creation + funding)
+      const result = await createEscroEscrow(
+        buyerWalletPubkey,
+        sellerWallet,
+        escrow.totalAmount,
+        escrow.conditions || escrow.description || 'Flint escrow payment',
+        7 * 24 * 60 * 60 // 7 days deadline
       );
-
-      // Fetch latest blockhash
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = buyer;
-      transaction.lastValidBlockHeight = lastValidBlockHeight;
-
-      console.log('Transaction prepared:', {
-        instructions: transaction.instructions.length,
-        feePayer: transaction.feePayer?.toString(),
-        recentBlockhash: blockhash,
-      });
-
-      // Step 4: Sign and send transaction
-      const signature = await provider.signAndSendTransaction(transaction, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
       
-      // Step 5: Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature.signature, 'confirmed');
-      
-      if (confirmation.value.err) {
-        throw new Error('Transaction failed on-chain');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create escrow');
       }
+      
+      console.log('✅ escro escrow created:', result);
 
-      // Step 6: Update backend with tx signature
+      // Step 6: Update backend with escro escrow ID
       const res = await fetch("/api/escrow/fund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           escrowId: id,
           buyerWallet: userWallet,
-          txSignature: signature.signature,
+          txSignature: result.escrowId, // escro escrow ID
+          escroPda: result.escrowPda,
+          amount: result.amount,
+          fee: result.fee,
         }),
       });
 
