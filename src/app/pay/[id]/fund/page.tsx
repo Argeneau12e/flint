@@ -102,26 +102,27 @@ export default function FundPage() {
       }
 
       // Use escro protocol for TRUE escrow (PDA-controlled, no human access)
-      const { createEscroEscrow } = await import('@/lib/escrow/escro-client');
-      
-      const sellerWallet = new PublicKey(escrow.creator || escrow.creator_wallet);
-      const buyerWalletPubkey = new PublicKey(userWallet);
-      
       console.log('Creating escro escrow:', {
         escrowId: id,
         buyer: userWallet,
-        seller: sellerWallet.toString(),
+        seller: escrow.creator || escrow.creator_wallet,
         amount: escrow.totalAmount,
       });
       
-      // Create escro escrow (this handles on-chain PDA creation + funding)
-      const result = await createEscroEscrow(
-        buyerWalletPubkey,
-        sellerWallet,
-        escrow.totalAmount,
-        escrow.conditions || escrow.description || 'Flint escrow payment',
-        7 * 24 * 60 * 60 // 7 days deadline
-      );
+      // Create escro escrow via server API
+      const createRes = await fetch('/api/escrow/create-escro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerWallet: userWallet,
+          sellerWallet: escrow.creator || escrow.creator_wallet,
+          amountUsdc: escrow.totalAmount,
+          taskSpec: escrow.conditions || escrow.description || 'Flint escrow payment',
+          deadlineSeconds: 7 * 24 * 60 * 60, // 7 days
+        }),
+      });
+      
+      const result = await createRes.json();
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to create escrow');
@@ -138,8 +139,7 @@ export default function FundPage() {
           buyerWallet: userWallet,
           txSignature: result.escrowId, // escro escrow ID
           escroPda: result.escrowPda,
-          amount: result.amount,
-          fee: result.fee,
+          amount: result.total, // Buyer pays amount + fee
         }),
       });
 
