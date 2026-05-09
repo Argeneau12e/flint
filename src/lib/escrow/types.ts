@@ -32,13 +32,13 @@ export const ESCROW_DEADLINES = {
   REVIEW: 7 * 24 * 60 * 60 * 1000,          // 7 days for Alice to review
 };
 
-// Fee tiers (REAL Flint Flow: Bob pays fee, NOT added to Alice's payment)
-// Alice pays exact amount. Fee is deducted from Bob's payout.
+// Fee tiers (REAL Flint Flow: Seller pays fee, NOT added to buyer's payment)
+// Buyer pays exact amount. Fee is deducted from seller's payout.
+// Matches pricing page: https://flint-rust.vercel.app/pricing
 export const FEE_TIERS = {
-  FREE: { rate: 0, maxVolume: 1000, name: 'Free' },           // 0% (first invoice)
-  BASIC: { rate: 0.01, maxVolume: 10000, name: 'Basic' },     // 1%
-  PRO: { rate: 0.0075, maxVolume: 100000, name: 'Pro' },      // 0.75%
-  ENTERPRISE: { rate: 0.005, maxVolume: Infinity, name: 'Enterprise' }, // 0.5%
+  FREE: { rate: 0.01, maxVolume: 1000, name: 'Free' },        // 1%
+  PRO: { rate: 0.005, maxVolume: 10000, name: 'Pro' },        // 0.5%
+  BUSINESS: { rate: 0.0025, maxVolume: 50000, name: 'Business' }, // 0.25%
 };
 
 // Fee caps (in USD)

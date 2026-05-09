@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const CheckCircleIcon = () => (
+  <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+  </svg>
+);
+
 export default function ReviewSuccessPage() {
   const router = useRouter();
   const [countdown, setCountdown] = useState(5);
@@ -29,21 +35,21 @@ export default function ReviewSuccessPage() {
           className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center"
           style={{ background: 'rgba(74,222,128,0.15)', border: '2px solid rgba(74,222,128,0.3)' }}
         >
-          <svg className="w-10 h-10 text-[#4ade80]" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
+          <div className="text-[#4ade80]">
+            <CheckCircleIcon />
+          </div>
         </div>
 
         <h1 className="text-3xl font-medium mb-4" style={{ color: "var(--chalk)" }}>
-          Payment Released!
+          Payment Released
         </h1>
         
         <p className="text-lg mb-2" style={{ color: "#4ade80" }}>
-          ✅ Bob has been paid
+          Seller has been paid
         </p>
         
         <p className="text-sm mb-8" style={{ color: "#888" }}>
-          Thank you for completing this transaction. A confirmation has been sent to your WhatsApp.
+          Thank you for completing this transaction. A confirmation has been sent to your email.
         </p>
 
         {/* What's Next */}
@@ -56,16 +62,16 @@ export default function ReviewSuccessPage() {
           </h2>
           <ul className="space-y-2 text-sm" style={{ color: "#888" }}>
             <li className="flex items-start gap-2">
-              <span style={{ color: "#4ade80" }}>•</span>
+              <span className="text-[#4ade80]">•</span>
               <span>You can download a receipt for your records</span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: "#4ade80" }}>•</span>
-              <span>Bob will receive your payment within seconds</span>
+              <span className="text-[#4ade80]">•</span>
+              <span>Seller will receive your payment within seconds</span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: "#4ade80" }}>•</span>
-              <span>Need more work? Bob can create another invoice anytime</span>
+              <span className="text-[#4ade80]">•</span>
+              <span>Need more work? Seller can create another invoice anytime</span>
             </li>
           </ul>
         </div>

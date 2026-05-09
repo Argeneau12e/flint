@@ -111,9 +111,9 @@ export default function FeeCalculator({
           {/* Fee */}
           <div className="flex justify-between">
             <span style={{ color: '#888' }}>
-              Flint Fee ({FEE_TIERS[feeTier].rate * 100}%)
+              Flint Fee ({(FEE_TIERS[feeTier].rate * 100).toFixed(2)}%)
               {minimumFeeApplied && (
-                <span className="ml-1 text-xs" style={{ color: '#FF6B2B' }}>(min ${MINIMUMS.MIN_FEE_USD})</span>
+                <span className="ml-1 text-xs" style={{ color: '#FF6B2B' }}> (min ${MINIMUMS.MIN_FEE_USD})</span>
               )}
             </span>
             <span style={{ color: '#f7f7f5' }}>
@@ -193,7 +193,7 @@ export default function FeeCalculator({
           <p className="text-xs" style={{ color: '#666' }}>
             <span style={{ color: '#888' }}>Fees support Flint&apos;s development. </span>
             <span style={{ color: '#888' }}>
-              First invoice is free! Pro (0.5%) and Business (0.25%) tiers available.
+              Pro (0.5%) and Business (0.25%) tiers available.
             </span>
           </p>
           <div className="flex gap-4 mt-2 text-xs" style={{ color: '#444' }}>

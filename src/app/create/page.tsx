@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import FlintLoader from "@/components/flint-loader";
 import FeeCalculator from "@/components/escrow/FeeCalculator";
 import { FEE_TIERS } from "@/lib/escrow/types";
+import { getSolanaProvider } from "@/lib/wallet";
 
 const ChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -12,32 +13,44 @@ const ChevronLeft = () => (
   </svg>
 );
 
+const InfoIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const SparklesIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+  </svg>
+);
+
 function CreatePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Wallet connection state
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [userWallet, setUserWallet] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
+
+  // Form state
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState("USDC");
   const [memo, setMemo] = useState("");
   const [expiryDays, setExpiryDays] = useState("3");
   const [deliveryDays, setDeliveryDays] = useState("7");
-  const [recipientWallet, setRecipientWallet] = useState("");
-  const [handle, setHandle] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [condition, setCondition] = useState("");
-  const [aliceWhatsapp, setAliceWhatsapp] = useState("");
   const [aiConditions, setAiConditions] = useState<string[]>([]);
   const [suggestingConditions, setSuggestingConditions] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [feeTier, setFeeTier] = useState<keyof typeof FEE_TIERS>('FREE');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  // Removed: splits, showSplits, recurring, webhookUrl (not part of REAL Flint Flow)
-  
-  // Escrow integration
-  const [escrowEnabled] = useState(true); // Escrow is DEFAULT (no toggle)
-  const [feeTier, setFeeTier] = useState<keyof typeof FEE_TIERS>('FREE');
 
-  const searchParams = useSearchParams();
-
+  // Prefill from URL params
   useEffect(() => {
     const t = searchParams.get("title");
     const a = searchParams.get("amount");
@@ -51,7 +64,37 @@ function CreatePageInner() {
     if (e) setExpiryDays(e);
   }, [searchParams]);
 
-  // AI Condition Suggester
+  // Check wallet connection on mount
+  useEffect(() => {
+    const savedWallet = localStorage.getItem("flint_wallet");
+    if (savedWallet) {
+      setUserWallet(savedWallet);
+      setWalletConnected(true);
+    }
+  }, []);
+
+  const connectWallet = async () => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      const provider = await getSolanaProvider();
+      if (!provider) {
+        setConnectionError("Phantom wallet not found. Please install Phantom.");
+        return;
+      }
+      const response = await provider.connect();
+      const wallet = response.publicKey.toString();
+      setUserWallet(wallet);
+      setWalletConnected(true);
+      localStorage.setItem("flint_wallet", wallet);
+    } catch (err: any) {
+      setConnectionError(err.message || "Failed to connect wallet");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  // AI Condition Suggester using QVAC SDK pattern
   const suggestConditions = async () => {
     if (!title) return;
     setSuggestingConditions(true);
@@ -62,13 +105,13 @@ function CreatePageInner() {
         body: JSON.stringify({ title, memo }),
       });
       const data = await res.json();
-      if (data.conditions) {
+      if (data.conditions && data.conditions.length > 0) {
         setAiConditions(data.conditions);
-        // Auto-fill condition with suggestions
         setCondition(data.conditions.join('\n'));
       }
     } catch (e) {
       console.error('AI suggestion failed:', e);
+      setError("AI suggestion unavailable. Please enter conditions manually.");
     } finally {
       setSuggestingConditions(false);
     }
@@ -77,14 +120,11 @@ function CreatePageInner() {
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Please add a title."); return; }
     if (!amount || Number(amount) <= 0) { setError("Please enter a valid amount."); return; }
-    if (!recipientWallet.trim()) { setError("Please enter your wallet address."); return; }
-    if (recipientWallet.length < 32) { setError("Wallet address looks too short."); return; }
-    if (!aliceWhatsapp.trim()) { setError("Please enter Alice's WhatsApp for notifications."); return; }
+    if (!walletConnected) { setError("Please connect your wallet first."); return; }
+    if (!clientEmail.trim()) { setError("Please enter your client's email."); return; }
 
     setLoading(true);
-    console.log('Creating invoice:', { title, amount: Number(amount), token, creator: recipientWallet, aliceWhatsapp });
     try {
-      // Use escrow create API (includes fee calculation)
       const res = await fetch("/api/escrow/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,13 +133,11 @@ function CreatePageInner() {
           amount: Number(amount),
           token,
           description: memo,
-          creator: recipientWallet, // Seller wallet
-          aliceWhatsapp, // Alice's contact for notifications
+          creator: userWallet,
+          clientEmail,
           deliveryDays: Number(deliveryDays),
           linkExpiryDays: Number(expiryDays),
           feeTier,
-          escrowEnabled,
-          handle,
           condition,
         }),
       });
@@ -133,6 +171,45 @@ function CreatePageInner() {
     { id: "SOL",  label: "SOL",   icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png", desc: "Solana" },
   ];
 
+  // Show wallet connection screen if not connected
+  if (!walletConnected) {
+    return (
+      <main className="min-h-screen px-5 sm:px-8 py-10 sm:py-14 flex items-center justify-center">
+        <div className="max-w-md w-full text-center">
+          <h1 className="text-3xl font-medium mb-4" style={{ color: "var(--chalk)" }}>
+            Connect Wallet
+          </h1>
+          <p className="mb-8" style={{ color: "#888" }}>
+            Connect your Solana wallet to create an invoice
+          </p>
+          
+          {connectionError && (
+            <div className="mb-6 p-4 rounded-xl" style={{ background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.2)" }}>
+              <p className="text-sm" style={{ color: "#ff4444" }}>{connectionError}</p>
+            </div>
+          )}
+          
+          <button
+            onClick={connectWallet}
+            disabled={connecting}
+            className="w-full py-4 rounded-xl font-medium text-white liquid-btn disabled:opacity-50"
+            style={{ fontSize: "15px", minHeight: "54px" }}
+          >
+            {connecting ? "Connecting..." : "Connect Phantom Wallet"}
+          </button>
+          
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 text-sm"
+            style={{ color: "#666" }}
+          >
+            Back to Home
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen px-5 sm:px-8 py-10 sm:py-14">
       <div className="max-w-lg mx-auto mb-8">
@@ -144,32 +221,31 @@ function CreatePageInner() {
           New Payment Request
         </h1>
         <p style={{ color: "#888888", fontSize: "14px" }}>
-          Fill in the details. We&apos;ll generate a shareable link instantly.
+          Fill in the details. We'll generate a shareable link instantly.
         </p>
       </div>
 
       <div className="max-w-lg mx-auto rounded-2xl p-6 sm:p-8 flex flex-col gap-6 glass-medium">
 
-        {/* Fee Disclosure Banner - CRITICAL for REAL flow */}
-        {amount && Number(amount) > 0 && (
-          <div 
-            className="p-4 rounded-xl flex items-start gap-3"
-            style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.2)' }}
-          >
-            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,184,0,0.2)' }}>
-              <svg className="w-3 h-3 text-[#FFB800]" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+        {/* Fee Disclosure Banner */}
+        <div 
+          className="p-4 rounded-xl"
+          style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.2)' }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0" style={{ color: '#FFB800' }}>
+              <InfoIcon />
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: '#FFB800' }}>💡 You (Bob) pay the escrow fee</p>
+              <p className="text-sm font-medium" style={{ color: '#FFB800' }}>
+                You pay the escrow fee
+              </p>
               <p className="text-xs mt-1" style={{ color: '#888' }}>
-                Alice pays exactly {amount} {token}. Your fee is deducted from your payout.
-                Alice never sees this fee — to her, it's just paying you.
+                Your client pays exactly the invoice amount. The fee is deducted from your payout — they never see it.
               </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Title */}
         <div>
@@ -177,14 +253,14 @@ function CreatePageInner() {
           <input
             value={title}
             onChange={(e) => { setTitle(e.target.value); setError(""); }}
-            placeholder="e.g. Logo design Phase 1"
+            placeholder="e.g. Logo Design - Phase 1"
             className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
           />
         </div>
 
         {/* Amount + Token */}
         <div>
-          <label style={labelStyle}>Amount &amp; Token</label>
+          <label style={labelStyle}>Amount & Token</label>
           <div className="flex gap-3">
             <div className="flex-1">
               <input
@@ -229,7 +305,7 @@ function CreatePageInner() {
           </p>
         </div>
 
-        {/* Fee Calculator - ESCROW INTEGRATION */}
+        {/* Fee Calculator */}
         {amount && Number(amount) > 0 && (
           <div>
             <label style={labelStyle}>Escrow Protection</label>
@@ -239,53 +315,27 @@ function CreatePageInner() {
               feeTier={feeTier}
               showDisclosure={true}
             />
-
           </div>
         )}
 
-        {/* Wallet */}
+        {/* Client's Email */}
         <div>
-          <label style={labelStyle}>Your Wallet Address</label>
+          <label style={labelStyle}>Client's Email</label>
           <input
-            value={recipientWallet}
-            onChange={(e) => { setRecipientWallet(e.target.value); setError(""); }}
-            placeholder="Your Solana wallet address"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
+            value={clientEmail}
+            onChange={(e) => { setClientEmail(e.target.value); setError(""); }}
+            placeholder="client@example.com"
+            type="email"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input"
           />
           <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-            This is where you will receive the payment
-          </p>
-        </div>
-
-        {/* Memo */}
-        <div>
-          <label style={labelStyle}>Memo <span style={{ color: "#444444", textTransform: "none", fontWeight: 400 }}>(optional)</span></label>
-          <textarea
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="What is this payment for?"
-            rows={2}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input resize-none"
-          />
-        </div>
-
-        {/* Alice's WhatsApp */}
-        <div>
-          <label style={labelStyle}>Alice's WhatsApp <span style={{ color: "#ff6b6b" }}>*</span></label>
-          <input
-            value={aliceWhatsapp}
-            onChange={(e) => { setAliceWhatsapp(e.target.value); setError(""); }}
-            placeholder="+1-234-567-8900 (with country code)"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input font-mono"
-          />
-          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-            Alice receives notifications here. She never knows this is escrow.
+            Your client receives notifications here
           </p>
         </div>
 
         {/* Delivery Time */}
         <div>
-          <label style={labelStyle}>Bob Has To Deliver</label>
+          <label style={labelStyle}>Delivery Deadline</label>
           <div className="flex gap-2 flex-wrap">
             {[
               { val: "3", label: "3 days" },
@@ -336,111 +386,63 @@ function CreatePageInner() {
             ))}
           </div>
           <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-            Alice must fund by this date or the link expires
+            Client must pay by this date or the link expires
           </p>
         </div>
 
-        {/* Advanced toggle */}
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80 flex items-center justify-between px-4 glass-light"
-          style={{ minHeight: "48px" }}
-        >
-          <span style={{ color: "var(--chalk)" }}>Advanced Options</span>
-          <span style={{ fontSize: "12px", color: "var(--spark)" }}>
-            {showAdvanced ? "− Hide" : "+ Show"}
-          </span>
-        </button>
-
-        {showAdvanced && (
-          <>
-            {/* Handle */}
-            <div>
-              <label style={labelStyle}>
-                Flint Handle <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(optional)</span>
-              </label>
-              <div className="flex items-center rounded-xl overflow-hidden"
-                style={{ background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <span className="px-3 py-3 text-sm flex-shrink-0"
-                  style={{ color: "#555555", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
-                  flint.pay/to/
-                </span>
-                <input
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                  placeholder="yourname"
-                  className="flex-1 px-3 py-3 text-sm outline-none"
-                  style={{ background: "transparent", color: "var(--chalk)" }}
-                />
-              </div>
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-                Anyone can pay you at this permanent link
-              </p>
+        {/* Service Conditions with AI Suggester */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label style={{ ...labelStyle, marginBottom: 0 }}>
+              Service Conditions
+            </label>
+            <button
+              onClick={suggestConditions}
+              disabled={suggestingConditions || !title}
+              className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80 flex items-center gap-1.5"
+              style={{
+                background: suggestingConditions || !title ? "rgba(255,107,43,0.1)" : "rgba(255,107,43,0.15)",
+                border: "1px solid rgba(255,107,43,0.3)",
+                color: "var(--spark)",
+                opacity: suggestingConditions || !title ? 0.5 : 1,
+              }}
+            >
+              <SparklesIcon />
+              {suggestingConditions ? "Thinking..." : "AI Suggest"}
+            </button>
+          </div>
+          <textarea
+            value={condition}
+            onChange={(e) => setCondition(e.target.value)}
+            placeholder="Describe what you'll deliver (or click AI Suggest above)"
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input resize-none"
+          />
+          {aiConditions.length > 0 && (
+            <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(255,107,43,0.08)', border: '1px solid rgba(255,107,43,0.2)' }}>
+              <p className="text-xs font-medium" style={{ color: 'var(--spark)', marginBottom: '6px' }}>AI Suggestions:</p>
+              <ul className="text-xs space-y-1" style={{ color: '#888' }}>
+                {aiConditions.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span style={{ color: 'var(--spark)' }}>•</span>
+                    <span>{c}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+          <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
+            These conditions will be shown to your client
+          </p>
+        </div>
 
-            {/* Condition with AI Suggester */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label style={{ ...labelStyle, marginBottom: 0 }}>
-                  Service Conditions <span style={{ color: "#444444", textTransform: "none", fontWeight: 400, fontSize: "11px" }}>(what you'll deliver)</span>
-                </label>
-                <button
-                  onClick={suggestConditions}
-                  disabled={suggestingConditions || !title}
-                  className="text-xs px-3 py-1 rounded-lg transition-all hover:opacity-80 flex items-center gap-1"
-                  style={{
-                    background: suggestingConditions ? "rgba(255,107,43,0.2)" : "rgba(255,107,43,0.1)",
-                    border: "1px solid rgba(255,107,43,0.3)",
-                    color: "var(--spark)",
-                    opacity: suggestingConditions || !title ? 0.5 : 1,
-                  }}
-                >
-                  {suggestingConditions ? (
-                    <>
-                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Thinking...
-                    </>
-                  ) : (
-                    <>
-                      ✨ AI Suggest
-                    </>
-                  )}
-                </button>
-              </div>
-              <textarea
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-                placeholder="Describe what you'll deliver (or click AI Suggest above)"
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none liquid-input resize-none"
-              />
-              {aiConditions.length > 0 && (
-                <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(255,107,43,0.08)', border: '1px solid rgba(255,107,43,0.2)' }}>
-                  <p className="text-xs font-medium" style={{ color: 'var(--spark)', marginBottom: '6px' }}>AI Suggestions (applied above):</p>
-                  <ul className="text-xs space-y-1" style={{ color: '#888' }}>
-                    {aiConditions.map((c, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span style={{ color: 'var(--spark)' }}>•</span>
-                        <span>{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <p style={{ color: "#444444", fontSize: "12px", marginTop: "6px" }}>
-                These conditions will be shown to Alice. Be clear about deliverables.
-              </p>
-            </div>
-
-
-
-
-
-          </>
-        )}
+        {/* Connected Wallet Display */}
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(15,15,15,0.5)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs uppercase tracking-wider mb-1" style={{ color: "#666" }}>Connected Wallet</p>
+          <p className="text-sm font-mono" style={{ color: "#888" }}>
+            {userWallet.slice(0, 6)}...{userWallet.slice(-4)}
+          </p>
+        </div>
 
         {error && (
           <p className="text-sm px-4 py-3 rounded-xl"
@@ -459,7 +461,7 @@ function CreatePageInner() {
         </button>
 
         <p className="text-center text-xs" style={{ color: "#333333" }}>
-          The payer needs no account — just a Solana wallet.
+          Your client needs no account — just a Solana wallet.
         </p>
       </div>
     </main>

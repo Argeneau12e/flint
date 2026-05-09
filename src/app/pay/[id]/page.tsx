@@ -186,10 +186,10 @@ export default function PayPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      draft: "Waiting for You",
-      pending_acceptance: "Waiting for You",
+      draft: "Waiting for Payment",
+      pending_acceptance: "Waiting for Payment",
       accepted_waiting_funding: "Ready to Pay",
-      funded_active: "Bob is Working",
+      funded_active: "Work in Progress",
       delivered_review: "Ready to Review",
       released_complete: "Complete",
       disputed: "Under Review",
@@ -323,7 +323,7 @@ export default function PayPage() {
               <div>
                 <p className="text-sm font-medium" style={{ color: "#4ade80" }}>Payment Protected</p>
                 <p className="text-xs mt-1" style={{ color: "#888" }}>
-                  Bob receives payment only after you approve the work.
+                  Seller receives payment only after you approve the work.
                 </p>
               </div>
             </div>
@@ -367,8 +367,8 @@ export default function PayPage() {
           {(invoice.status === "funded_active" || hasFunded) && (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
-                <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Paid - Waiting for Bob to Deliver</p>
-                <p className="text-xs mt-1" style={{ color: "#888" }}>Bob has been notified and will deliver soon.</p>
+                <p className="text-sm font-medium" style={{ color: "#3b82f6" }}>Paid - Waiting for Delivery</p>
+                <p className="text-xs mt-1" style={{ color: "#888" }}>Seller has been notified and will deliver soon.</p>
               </div>
               {/* Seller: Mark as Delivered button */}
               <button
@@ -403,8 +403,8 @@ export default function PayPage() {
           {(invoice.status === "delivered_review" || sessionStorage.getItem(`delivered_${id}`)) && (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl" style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
-                <p className="text-sm font-medium" style={{ color: "#8b5cf6" }}>Bob Delivered the Work</p>
-                <p className="text-xs mt-1" style={{ color: "#888" }}>Review below and confirm you're satisfied.</p>
+                <p className="text-sm font-medium" style={{ color: "#8b5cf6" }}>Work Delivered</p>
+                <p className="text-xs mt-1" style={{ color: "#888" }}>Review the work and confirm you're satisfied.</p>
               </div>
               <div className="flex gap-3">
                 <button
