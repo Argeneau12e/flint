@@ -84,7 +84,7 @@ Example for "Logo Design":
 Your response:`;
 
       const result = await completion({
-        model: modelId,
+        modelId: modelId,
         prompt,
         maxTokens: 200,
         temperature: 0.7,
