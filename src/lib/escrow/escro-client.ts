@@ -50,7 +50,7 @@ export async function createEscroEscrow(
     // Create escrow via escro SDK
     const escrow = await escroClient.createEscrow({
       amountUsdc,
-      assignedWorker: sellerWallet,
+      assignedWorker: sellerWallet.toString(),
       taskSpec: {
         description: taskSpec,
         acceptance_criteria: ['Deliver as specified'],
